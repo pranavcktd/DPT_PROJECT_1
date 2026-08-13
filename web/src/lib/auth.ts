@@ -24,12 +24,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await db.users.findUnique({
           where: { email },
-          include: { roles: true },
+          include: { roles: true, departments_users_department_idTodepartments: true },
         });
 
         const passwordValid = user ? await bcrypt.compare(password, user.password_hash) : false;
 
-        if (!user || user.status !== "ACTIVE" || !passwordValid) {
+        // Department-scoped accounts (everyone except Super Admin) must
+        // belong to an ACTIVE department with no lapsed subscription -
+        // Super Admin's Disable/Delete/subscription controls take effect
+        // immediately on next login, not just in the UI.
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const department = user?.departments_users_department_idTodepartments;
+        const departmentBlocked =
+          !!department &&
+          (department.status !== "ACTIVE" ||
+            (department.subscription_end_date !== null && department.subscription_end_date < today));
+
+        if (!user || user.status !== "ACTIVE" || !passwordValid || departmentBlocked) {
           if (user) {
             await db.login_logs.create({
               data: {

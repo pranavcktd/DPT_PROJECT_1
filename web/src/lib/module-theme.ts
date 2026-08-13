@@ -6,10 +6,21 @@ import {
   Receipt,
   Award,
   Building2,
+  ShieldCheck,
+  KeyRound,
   type LucideIcon,
 } from "lucide-react";
 
-export type ModuleKey = "dashboard" | "contractors" | "schemes" | "works" | "payments" | "certificates" | "department";
+export type ModuleKey =
+  | "dashboard"
+  | "contractors"
+  | "schemes"
+  | "works"
+  | "payments"
+  | "certificates"
+  | "department"
+  | "superAdmin"
+  | "account";
 
 export const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -19,6 +30,8 @@ export const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   payments: Receipt,
   certificates: Award,
   department: Building2,
+  superAdmin: ShieldCheck,
+  account: KeyRound,
 };
 
 /**
@@ -108,5 +121,23 @@ export const MODULE_THEME: Record<
     accentBar: "bg-teal-500",
     accentBox: "bg-teal-600",
     text: "text-teal-700",
+  },
+  superAdmin: {
+    badge: "bg-fuchsia-100 text-fuchsia-700",
+    navActive: "bg-fuchsia-600 text-white",
+    button: "bg-fuchsia-600 text-white hover:bg-fuchsia-700",
+    pill: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
+    accentBar: "bg-fuchsia-500",
+    accentBox: "bg-fuchsia-600",
+    text: "text-fuchsia-700",
+  },
+  account: {
+    badge: "bg-slate-100 text-slate-700",
+    navActive: "bg-slate-600 text-white",
+    button: "bg-slate-600 text-white hover:bg-slate-700",
+    pill: "bg-slate-50 text-slate-700 border-slate-200",
+    accentBar: "bg-slate-500",
+    accentBox: "bg-slate-600",
+    text: "text-slate-700",
   },
 };

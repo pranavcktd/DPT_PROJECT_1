@@ -54,6 +54,11 @@ export async function requireRole(...allowed: RoleCode[]) {
   return user;
 }
 
+/** Super Admin (software company) - the only role with no departmentId. */
+export async function requireSuperAdmin() {
+  return requireRole("SUPER_ADMIN");
+}
+
 /**
  * Department-scoped users (everyone except SUPER_ADMIN) must have a
  * departmentId - use this in any query that filters by department_id.

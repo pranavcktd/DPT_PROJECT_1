@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireModulePermission } from "@/lib/session";
 import { writeAuditLog } from "@/lib/audit";
-import { deriveGstTdsType } from "@/lib/payment-calc";
+import { calculatePayment, deriveGstTdsType } from "@/lib/payment-calc";
 import { paymentFormSchema, type PaymentFormValues } from "./schema";
 
 export type ActionState = { error: string | null; success?: boolean; paymentId?: string };
@@ -28,7 +28,29 @@ function friendlyErrorFor(error: unknown): string {
   throw error;
 }
 
+/**
+ * Postgres forbids a generated column from referencing another generated
+ * column, so `total_bill_value`, `total_deductions`, and `net_payable_amount`
+ * are plain columns (see database/schema.sql header note) - the app must
+ * compute and supply them on every write via calculatePayment(), which
+ * mirrors the DB's own per-line generated-column formulas exactly.
+ */
 function buildDeductionFields(values: PaymentFormValues, gstTdsType: ReturnType<typeof deriveGstTdsType>) {
+  const calc = calculatePayment({
+    baseCost: values.base_cost,
+    gstRate: values.gst_rate,
+    itTdsRate: values.it_tds_rate,
+    gstTdsRate: values.gst_tds_rate,
+    gstTdsType,
+    labourCessRate: values.labour_cess_rate,
+    royaltyType: values.royalty_type,
+    royaltyValue: values.royalty_value,
+    stampDutyType: values.stamp_duty_type,
+    stampDutyValue: values.stamp_duty_value,
+    otherDeductionType: values.other_deduction_type,
+    otherDeductionValue: values.other_deduction_value,
+  });
+
   return {
     invoice_number: values.invoice_number,
     invoice_date: new Date(values.invoice_date),
@@ -36,6 +58,7 @@ function buildDeductionFields(values: PaymentFormValues, gstTdsType: ReturnType<
 
     gst_rate: values.gst_rate,
     gst_rate_is_manual: values.gst_rate_is_manual,
+    total_bill_value: calc.totalBillValue,
 
     it_tds_rate: values.it_tds_rate,
     it_tds_rate_is_manual: values.it_tds_rate_is_manual,
@@ -56,6 +79,9 @@ function buildDeductionFields(values: PaymentFormValues, gstTdsType: ReturnType<
     other_deduction_type: values.other_deduction_type,
     other_deduction_value: values.other_deduction_value,
     other_deduction_remarks: toNullable(values.other_deduction_remarks),
+
+    total_deductions: calc.totalDeductions,
+    net_payable_amount: calc.netPayableAmount,
 
     treasury_token_number: toNullable(values.treasury_token_number),
     treasury_payment_date: values.treasury_payment_date ? new Date(values.treasury_payment_date) : null,

@@ -1,5 +1,6 @@
 import Image from "next/image";
-import { Menu } from "lucide-react";
+import Link from "next/link";
+import { KeyRound, Menu } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -26,6 +27,11 @@ const BASE_NAV_ITEMS: NavItem[] = [
   { href: "/certificates", label: "Certificates", icon: "certificates" },
 ];
 
+const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/super-admin/departments", label: "Departments", icon: "superAdmin" },
+];
+
 function initials(name: string | null | undefined) {
   if (!name) return "?";
   return name
@@ -50,12 +56,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ? (await getModulePermissions("DEPARTMENT_SETTINGS")).can_view
     : false;
 
-  const navItems: NavItem[] = [
-    ...BASE_NAV_ITEMS,
-    ...(canViewDepartmentSettings
-      ? [{ href: "/department", label: "Department Profile", icon: "department" as const }]
-      : []),
-  ];
+  const navItems: NavItem[] =
+    user.roleCode === "SUPER_ADMIN"
+      ? SUPER_ADMIN_NAV_ITEMS
+      : [
+          ...BASE_NAV_ITEMS,
+          ...(canViewDepartmentSettings
+            ? [{ href: "/department", label: "Department Profile", icon: "department" as const }]
+            : []),
+        ];
 
   const brand = (
     <div className="flex items-center gap-2.5 px-1">
@@ -82,19 +91,30 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   );
 
   const userFooter = (
-    <div className="flex items-center gap-2.5 rounded-lg border bg-muted/30 p-2.5">
-      <Avatar size="sm">
-        <AvatarFallback>{initials(user.name)}</AvatarFallback>
-      </Avatar>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium leading-tight">{user.name}</p>
-        <p className="truncate text-xs text-muted-foreground">{ROLE_LABELS[user.roleCode] ?? user.roleCode}</p>
+    <div className="space-y-1.5 rounded-lg border bg-muted/30 p-2.5">
+      <div className="flex items-center gap-2.5">
+        <Avatar size="sm">
+          <AvatarFallback>{initials(user.name)}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium leading-tight">{user.name}</p>
+          <p className="truncate text-xs text-muted-foreground">{ROLE_LABELS[user.roleCode] ?? user.roleCode}</p>
+        </div>
       </div>
-      <form action={signOutAction}>
-        <Button type="submit" variant="ghost" size="sm">
-          Sign out
-        </Button>
-      </form>
+      <div className="flex items-center gap-1.5">
+        <Link
+          href="/change-password"
+          className={buttonVariants({ variant: "ghost", size: "sm" }) + " flex-1 justify-start gap-1.5"}
+        >
+          <KeyRound className="size-3.5" />
+          Change Password
+        </Link>
+        <form action={signOutAction}>
+          <Button type="submit" variant="ghost" size="sm">
+            Sign out
+          </Button>
+        </form>
+      </div>
     </div>
   );
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { MODULE_ICONS, MODULE_THEME, type ModuleKey } from "@/lib/module-theme";
 import { cn } from "@/lib/utils";
+import { db } from "@/lib/db";
 import { getModulePermissions, requireUser } from "@/lib/session";
 
 const TILES: { moduleKey: ModuleKey; href: string; title: string; description: string; permissionModule: Parameters<typeof getModulePermissions>[0] }[] = [
@@ -52,6 +53,49 @@ const TILES: { moduleKey: ModuleKey; href: string; title: string; description: s
 export default async function DashboardPage() {
   const user = await requireUser();
 
+  if (user.roleCode === "SUPER_ADMIN") {
+    const [total, active, inactive] = await Promise.all([
+      db.departments.count(),
+      db.departments.count({ where: { status: "ACTIVE" } }),
+      db.departments.count({ where: { status: "INACTIVE" } }),
+    ]);
+
+    const stats = [
+      { label: "Departments onboarded", value: total },
+      { label: "Active", value: active },
+      { label: "Disabled", value: inactive },
+    ];
+
+    return (
+      <div className="space-y-6">
+        <PageHeader moduleKey="dashboard" title={`Welcome, ${user.name}`} description="Software Company Super Admin" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {stats.map((stat) => (
+            <div key={stat.label} className="rounded-xl border bg-card p-4">
+              <p className="text-2xl font-semibold">{stat.value}</p>
+              <p className="text-sm text-muted-foreground">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+        <Link
+          href="/super-admin/departments"
+          className="group flex items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-foreground/20 sm:max-w-sm"
+        >
+          <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl", MODULE_THEME.superAdmin.badge)}>
+            {(() => {
+              const Icon = MODULE_ICONS.superAdmin;
+              return <Icon className="size-5" />;
+            })()}
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium leading-tight">Manage Departments</p>
+            <p className="text-sm text-muted-foreground">Onboard, disable, or manage subscriptions</p>
+          </div>
+        </Link>
+      </div>
+    );
+  }
+
   const tiles = user.departmentId
     ? (
         await Promise.all(
@@ -65,11 +109,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        moduleKey="dashboard"
-        title={`Welcome, ${user.name}`}
-        description={user.departmentId ? "Pick up where you left off." : "Software Company Super Admin"}
-      />
+      <PageHeader moduleKey="dashboard" title={`Welcome, ${user.name}`} description="Pick up where you left off." />
 
       {tiles.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
