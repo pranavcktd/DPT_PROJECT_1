@@ -23,7 +23,6 @@ const BASE_NAV_ITEMS: NavItem[] = [
   { href: "/contractors", label: "Contractors", icon: "contractors" },
   { href: "/schemes", label: "Schemes", icon: "schemes" },
   { href: "/works", label: "Works", icon: "works" },
-  { href: "/payments", label: "Payments", icon: "payments" },
   { href: "/certificates", label: "Certificates", icon: "certificates" },
 ];
 
@@ -56,12 +55,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ? (await getModulePermissions("DEPARTMENT_SETTINGS")).can_view
     : false;
   const canViewTaxReports = user.departmentId ? (await getModulePermissions("TAX_LEDGER_REPORT")).can_view : false;
+  const canViewEmployees = user.departmentId ? (await getModulePermissions("EMPLOYEE_MASTER")).can_view : false;
+  const canViewNonSalaryPayments = user.departmentId ? (await getModulePermissions("PAYMENT_ENTRY")).can_view : false;
+  const canViewSalaryPayments = user.departmentId ? (await getModulePermissions("SALARY_PAYMENT_ENTRY")).can_view : false;
+
+  const paymentsGroupChildren = [
+    ...(canViewNonSalaryPayments ? [{ href: "/payments", label: "Non-Salary Payments", icon: "payments" as const }] : []),
+    ...(canViewSalaryPayments ? [{ href: "/salary-payments", label: "Salary Payments", icon: "salaryPayments" as const }] : []),
+  ];
 
   const navItems: NavItem[] =
     user.roleCode === "SUPER_ADMIN"
       ? SUPER_ADMIN_NAV_ITEMS
       : [
           ...BASE_NAV_ITEMS,
+          ...(canViewEmployees ? [{ href: "/employees", label: "Employees", icon: "employees" as const }] : []),
+          ...(paymentsGroupChildren.length > 0
+            ? [{ label: "Payments", icon: "payments" as const, children: paymentsGroupChildren }]
+            : []),
           ...(canViewTaxReports ? [{ href: "/reports", label: "Tax Reports", icon: "reports" as const }] : []),
           ...(canViewDepartmentSettings
             ? [{ href: "/department", label: "Department Profile", icon: "department" as const }]

@@ -9,6 +9,8 @@ import {
   ShieldCheck,
   KeyRound,
   FileBarChart,
+  UserRound,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,7 +24,9 @@ export type ModuleKey =
   | "department"
   | "superAdmin"
   | "account"
-  | "reports";
+  | "reports"
+  | "employees"
+  | "salaryPayments";
 
 export const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -35,6 +39,8 @@ export const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   superAdmin: ShieldCheck,
   account: KeyRound,
   reports: FileBarChart,
+  employees: UserRound,
+  salaryPayments: Wallet,
 };
 
 /**
@@ -151,5 +157,23 @@ export const MODULE_THEME: Record<
     accentBar: "bg-orange-500",
     accentBox: "bg-orange-600",
     text: "text-orange-700",
+  },
+  employees: {
+    badge: "bg-cyan-100 text-cyan-700",
+    navActive: "bg-cyan-600 text-white",
+    button: "bg-cyan-600 text-white hover:bg-cyan-700",
+    pill: "bg-cyan-50 text-cyan-700 border-cyan-200",
+    accentBar: "bg-cyan-500",
+    accentBox: "bg-cyan-600",
+    text: "text-cyan-700",
+  },
+  salaryPayments: {
+    badge: "bg-lime-100 text-lime-700",
+    navActive: "bg-lime-600 text-white",
+    button: "bg-lime-600 text-white hover:bg-lime-700",
+    pill: "bg-lime-50 text-lime-700 border-lime-200",
+    accentBar: "bg-lime-500",
+    accentBox: "bg-lime-600",
+    text: "text-lime-700",
   },
 };

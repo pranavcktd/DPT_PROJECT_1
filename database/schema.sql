@@ -37,6 +37,7 @@ CREATE TYPE payments_royalty_type AS ENUM ('PERCENTAGE','FIXED_AMOUNT','NOT_APPL
 CREATE TYPE payments_stamp_duty_type AS ENUM ('PERCENTAGE','FIXED_AMOUNT','NOT_APPLICABLE');
 CREATE TYPE payments_other_deduction_type AS ENUM ('PERCENTAGE','FIXED_AMOUNT','NOT_APPLICABLE');
 CREATE TYPE payments_status AS ENUM ('SAVED','APPROVED','CANCELLED');
+CREATE TYPE salary_payments_payment_type AS ENUM ('SALARY','DA','ARREAR','MEDICAL_REIMBURSEMENT','OTHER');
 CREATE TYPE certificate_logs_certificate_type AS ENUM ('PAYMENT_CERTIFICATE','WORK_EXPERIENCE_CERTIFICATE','TAX_LEDGER_REPORT');
 CREATE TYPE certificate_logs_file_format AS ENUM ('PDF','EXCEL','CSV');
 CREATE TYPE audit_logs_action AS ENUM ('CREATE','UPDATE','DELETE');
@@ -379,6 +380,64 @@ CREATE INDEX idx_payment_status ON payments (status);
 CREATE INDEX idx_payment_treasury_token ON payments (treasury_token_number);
 
 -- ============================================================================
+-- SECTION 5B: PAYROLL - EMPLOYEES & SALARY PAYMENTS
+-- Independent of the contractor/work/scheme budget model above - salary
+-- payments have no work-order/scheme budget ceiling to guard against.
+-- ============================================================================
+
+CREATE TABLE employees (
+  id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  department_id   BIGINT NOT NULL,
+  employee_name   VARCHAR(150) NOT NULL,
+  pan_number      CHAR(10) NOT NULL,
+  dob             DATE NULL,
+  mobile          VARCHAR(20) NULL,
+  joining_date    DATE NULL,      -- joining this department
+  transfer_date   DATE NULL,      -- transfer out of this department, if applicable
+  status          ddo_details_status NOT NULL DEFAULT 'ACTIVE',   -- reuses the existing ACTIVE/INACTIVE enum
+  created_by      BIGINT NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_employee_department FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
+  CONSTRAINT fk_employee_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT uq_employee_pan_per_dept UNIQUE (department_id, pan_number)
+);
+CREATE INDEX idx_employee_department ON employees (department_id);
+
+CREATE TABLE salary_payments (
+  id                      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  department_id           BIGINT NOT NULL,
+  employee_id             BIGINT NOT NULL,
+  employee_name_snapshot  VARCHAR(150) NOT NULL,
+  employee_pan_snapshot   CHAR(10) NULL,
+  payment_type            salary_payments_payment_type NOT NULL DEFAULT 'SALARY',
+  other_type_label        VARCHAR(100) NULL,               -- only used when payment_type = OTHER
+  gross_salary            DECIMAL(15,2) NOT NULL,
+  it_deduction_amount     DECIMAL(15,2) NOT NULL DEFAULT 0,
+  net_payable_amount      DECIMAL(15,2) GENERATED ALWAYS AS (gross_salary - it_deduction_amount) STORED,
+  treasury_token_number   VARCHAR(50) NULL,
+  treasury_payment_date   DATE NULL,                       -- basis for the Form 24Q quarterly report
+  status                  payments_status NOT NULL DEFAULT 'SAVED',   -- reuses the non-salary payments status enum
+  cancellation_reason     VARCHAR(500) NULL,
+  remarks                 VARCHAR(500) NULL,
+  created_by              BIGINT NULL,
+  created_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_salpay_department FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
+  CONSTRAINT fk_salpay_employee   FOREIGN KEY (employee_id) REFERENCES employees(id),
+  CONSTRAINT fk_salpay_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT chk_salpay_gross_salary CHECK (gross_salary > 0),
+  CONSTRAINT chk_salpay_it_deduction CHECK (it_deduction_amount >= 0)
+);
+CREATE INDEX idx_salpay_department ON salary_payments (department_id);
+CREATE INDEX idx_salpay_employee ON salary_payments (employee_id);
+CREATE INDEX idx_salpay_status ON salary_payments (status);
+CREATE INDEX idx_salpay_treasury_token ON salary_payments (treasury_token_number);
+
+CREATE TRIGGER trg_employees_updated_at BEFORE UPDATE ON employees FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_salary_payments_updated_at BEFORE UPDATE ON salary_payments FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ============================================================================
 -- SECTION 6: CERTIFICATES & REPORT GENERATION LOG
 -- ============================================================================
 
@@ -642,7 +701,9 @@ INSERT INTO modules (module_code, module_name, description) VALUES
 ('TAX_LEDGER_REPORT', 'Tax & Audit Reports', 'Consolidated tax/audit summary reports'),
 ('AUDIT_LOGS', 'Audit Logs', 'View system-wide change history'),
 ('USER_MANAGEMENT', 'User Management', 'Manage staff accounts and permissions'),
-('DEPARTMENT_SETTINGS', 'Department Settings', 'Department profile and DDO configuration');
+('DEPARTMENT_SETTINGS', 'Department Settings', 'Department profile and DDO configuration'),
+('EMPLOYEE_MASTER', 'Employee Details', 'Departmental staff directory for salary payments'),
+('SALARY_PAYMENT_ENTRY', 'Salary Payments', 'Salary, DA, arrears, and other employee payment entries');
 
 -- ============================================================================
 -- NOTES FOR THE APPLICATION LAYER

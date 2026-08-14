@@ -12,7 +12,9 @@ export type ModuleCode =
   | "TAX_LEDGER_REPORT"
   | "AUDIT_LOGS"
   | "USER_MANAGEMENT"
-  | "DEPARTMENT_SETTINGS";
+  | "DEPARTMENT_SETTINGS"
+  | "EMPLOYEE_MASTER"
+  | "SALARY_PAYMENT_ENTRY";
 
 export type PermissionAction = "view" | "create" | "edit" | "delete";
 
