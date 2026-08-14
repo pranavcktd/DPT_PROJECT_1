@@ -260,6 +260,7 @@ CREATE TABLE payments (
   -- moment of payment, even if the contractor/work master is edited later
   contractor_name_snapshot  VARCHAR(150) NOT NULL,
   contractor_gstin_snapshot CHAR(15) NULL,
+  contractor_pan_snapshot   CHAR(10) NULL,
   work_name_snapshot         VARCHAR(200) NOT NULL,
   agreement_number_snapshot  VARCHAR(50) NOT NULL,
   agreement_date_snapshot    DATE NOT NULL,

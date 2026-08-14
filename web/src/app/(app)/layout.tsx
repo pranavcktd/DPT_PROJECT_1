@@ -55,12 +55,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const canViewDepartmentSettings = user.departmentId
     ? (await getModulePermissions("DEPARTMENT_SETTINGS")).can_view
     : false;
+  const canViewTaxReports = user.departmentId ? (await getModulePermissions("TAX_LEDGER_REPORT")).can_view : false;
 
   const navItems: NavItem[] =
     user.roleCode === "SUPER_ADMIN"
       ? SUPER_ADMIN_NAV_ITEMS
       : [
           ...BASE_NAV_ITEMS,
+          ...(canViewTaxReports ? [{ href: "/reports", label: "Tax Reports", icon: "reports" as const }] : []),
           ...(canViewDepartmentSettings
             ? [{ href: "/department", label: "Department Profile", icon: "department" as const }]
             : []),

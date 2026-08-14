@@ -9,7 +9,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { onboardDepartmentSchema, subscriptionSchema } from "./schema";
 import { DEFAULT_PASSWORD } from "./constants";
 
-export type ActionState = { error: string | null; success?: boolean; tenantCode?: string };
+export type ActionState = { error: string | null; success?: boolean; tenantCode?: string; email?: string };
 
 function toNullable(value?: string): string | null {
   return value && value.length > 0 ? value : null;
@@ -105,7 +105,7 @@ export async function onboardDepartment(_prev: ActionState, formData: FormData):
       });
 
       return department;
-    });
+    }, { maxWait: 15000, timeout: 20000 }); // generous - Neon's serverless connections can be slow to wake from idle
 
     await writeAuditLog({
       departmentId: result.id,
@@ -231,5 +231,5 @@ export async function resetDepartmentAdminPassword(departmentId: string): Promis
   });
 
   revalidatePath("/super-admin/departments");
-  return { error: null, success: true };
+  return { error: null, success: true, email: admin.email };
 }

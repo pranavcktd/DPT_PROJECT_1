@@ -8,6 +8,7 @@ import {
   Building2,
   ShieldCheck,
   KeyRound,
+  FileBarChart,
   type LucideIcon,
 } from "lucide-react";
 
@@ -20,7 +21,8 @@ export type ModuleKey =
   | "certificates"
   | "department"
   | "superAdmin"
-  | "account";
+  | "account"
+  | "reports";
 
 export const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -32,6 +34,7 @@ export const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   department: Building2,
   superAdmin: ShieldCheck,
   account: KeyRound,
+  reports: FileBarChart,
 };
 
 /**
@@ -139,5 +142,14 @@ export const MODULE_THEME: Record<
     accentBar: "bg-slate-500",
     accentBox: "bg-slate-600",
     text: "text-slate-700",
+  },
+  reports: {
+    badge: "bg-orange-100 text-orange-700",
+    navActive: "bg-orange-600 text-white",
+    button: "bg-orange-600 text-white hover:bg-orange-700",
+    pill: "bg-orange-50 text-orange-700 border-orange-200",
+    accentBar: "bg-orange-500",
+    accentBox: "bg-orange-600",
+    text: "text-orange-700",
   },
 };

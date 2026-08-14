@@ -234,6 +234,7 @@ model payments {
   approved_at                       DateTime?                     @db.Timestamp(6)
   created_at                        DateTime                      @default(now()) @db.Timestamp(6)
   updated_at                        DateTime                      @default(now()) @db.Timestamp(6)
+  contractor_pan_snapshot           String?                       @db.Char(10)
   users_payments_approved_byTousers users?                        @relation("payments_approved_byTousers", fields: [approved_by], references: [id], onUpdate: NoAction, map: "fk_payment_approved_by")
   contractors                       contractors                   @relation(fields: [contractor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payment_contractor")
   users_payments_created_byTousers  users?                        @relation("payments_created_byTousers", fields: [created_by], references: [id], onUpdate: NoAction, map: "fk_payment_created_by")

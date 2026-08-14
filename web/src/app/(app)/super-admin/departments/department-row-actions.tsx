@@ -83,7 +83,7 @@ export function ResetPasswordDialog({ departmentId, departmentName }: { departme
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
+  const [resetEmail, setResetEmail] = useState<string | null>(null);
 
   async function handleConfirm() {
     setError(null);
@@ -94,7 +94,7 @@ export function ResetPasswordDialog({ departmentId, departmentName }: { departme
       setError(result.error);
       return;
     }
-    setDone(true);
+    setResetEmail(result.email ?? "the admin account");
     router.refresh();
   }
 
@@ -105,7 +105,7 @@ export function ResetPasswordDialog({ departmentId, departmentName }: { departme
         setOpen(next);
         if (!next) {
           setError(null);
-          setDone(false);
+          setResetEmail(null);
         }
       }}
     >
@@ -122,9 +122,14 @@ export function ResetPasswordDialog({ departmentId, departmentName }: { departme
           </DialogDescription>
         </DialogHeader>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        {done ? <p className="text-sm text-emerald-600">Password reset to the default.</p> : null}
+        {resetEmail ? (
+          <p className="text-sm text-emerald-600">
+            Password reset. Log in as <span className="font-mono font-medium">{resetEmail}</span> with{" "}
+            <span className="font-mono font-medium">{DEFAULT_PASSWORD}</span>.
+          </p>
+        ) : null}
         <DialogFooter>
-          <Button onClick={handleConfirm} disabled={isSubmitting || done}>
+          <Button onClick={handleConfirm} disabled={isSubmitting || !!resetEmail}>
             {isSubmitting ? "Resetting..." : "Confirm Reset"}
           </Button>
         </DialogFooter>
