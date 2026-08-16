@@ -1,11 +1,14 @@
-import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
+import { PrintButton } from "@/components/print-button";
+import { ReportFilterBar } from "@/components/report-filter-bar";
+import { SendEmailDialog } from "@/components/send-email-dialog";
 import { requireModulePermission } from "@/lib/session";
 import { formatINR } from "@/lib/utils";
 import { MONTHS, formatDateForReport } from "@/lib/reports";
+import { emailReportCsv } from "../email-actions";
 import { getGstr7ReportRows } from "./data";
 
 export default async function Gstr7ReportPage(props: PageProps<"/reports/gstr7">) {
@@ -42,58 +45,38 @@ export default async function Gstr7ReportPage(props: PageProps<"/reports/gstr7">
         title="GSTR-7"
         description="Monthly GST TDS deducted per invoice, based on the treasury payment date - file by the 10th of the next month."
         action={
-          <a href={exportHref} className={buttonVariants({ variant: "default" }) + " bg-orange-600 text-white hover:bg-orange-700"}>
-            Export CSV
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <PrintButton />
+            <a href={exportHref} className={buttonVariants({ variant: "default" }) + " bg-orange-600 text-white hover:bg-orange-700"}>
+              Export CSV
+            </a>
+            <SendEmailDialog action={emailReportCsv} extraFields={{ reportType: "gstr7", year: String(year), month: String(month), contractor }} />
+          </div>
         }
       />
 
-      <Card>
-        <CardContent className="pt-6">
-          <form method="get" className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1.5">
-              <label htmlFor="month" className="text-sm font-medium">
-                Month
-              </label>
-              <select id="month" name="month" defaultValue={month} className="h-9 rounded-md border bg-background px-3 text-sm">
-                {MONTHS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="year" className="text-sm font-medium">
-                Year
-              </label>
-              <select id="year" name="year" defaultValue={year} className="h-9 rounded-md border bg-background px-3 text-sm">
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="contractor" className="text-sm font-medium">
-                Search Contractor
-              </label>
-              <input
-                id="contractor"
-                name="contractor"
-                defaultValue={contractor}
-                placeholder="Contractor / party name"
-                className="h-9 w-56 rounded-md border bg-background px-3 text-sm"
-              />
-            </div>
-            <button type="submit" className={buttonVariants({ variant: "secondary" })}>
-              Apply
-            </button>
-            <Link href="/reports/gstr7" className={buttonVariants({ variant: "ghost" })}>
-              Reset
-            </Link>
-          </form>
+      <Card className="no-print">
+
+<CardContent className="pt-6">
+          <ReportFilterBar
+            fields={[
+              {
+                type: "select",
+                name: "month",
+                label: "Month",
+                defaultValue: String(month),
+                options: MONTHS.map((m) => ({ value: String(m.value), label: m.label })),
+              },
+              {
+                type: "select",
+                name: "year",
+                label: "Year",
+                defaultValue: String(year),
+                options: yearOptions.map((y) => ({ value: String(y), label: String(y) })),
+              },
+              { type: "text", name: "contractor", label: "Search Contractor", placeholder: "Contractor / party name" },
+            ]}
+          />
         </CardContent>
       </Card>
 

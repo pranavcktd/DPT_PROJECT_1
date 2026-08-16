@@ -1,8 +1,10 @@
+import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { MODULE_THEME } from "@/lib/module-theme";
 import { db } from "@/lib/db";
 import { getModulePermissions } from "@/lib/session";
 import { EmployeeFormDialog } from "./employee-form-dialog";
+import { EmployeesImportDialog } from "./import-dialog";
 import { EmployeesTable } from "./employees-table";
 
 export default async function EmployeesPage() {
@@ -31,7 +33,17 @@ export default async function EmployeesPage() {
         moduleKey="employees"
         title="Employee Details"
         description="Departmental staff for salary payments and Form 24Q reporting."
-        action={can_create ? <EmployeeFormDialog triggerLabel="New Employee" triggerClassName={theme.button} /> : null}
+        action={
+          can_create ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <a href="/api/employees/export" className={buttonVariants({ variant: "outline" })}>
+                Export
+              </a>
+              <EmployeesImportDialog />
+              <EmployeeFormDialog triggerLabel="New Employee" triggerClassName={theme.button} />
+            </div>
+          ) : null
+        }
       />
       <EmployeesTable employees={rows} can_edit={can_edit} />
     </div>

@@ -3,15 +3,17 @@ import { db } from "@/lib/db";
 import { requireModulePermission } from "@/lib/session";
 import { DepartmentProfileForm } from "./department-profile-form";
 import { DdoForm } from "./ddo-form";
+import { SmtpSettingsForm } from "./smtp-settings-form";
 
 export default async function DepartmentProfilePage() {
   const user = await requireModulePermission("DEPARTMENT_SETTINGS", "view");
   const departmentId = BigInt(user.departmentId);
 
-  const [department, ddo, stateCodes] = await Promise.all([
+  const [department, ddo, stateCodes, smtp] = await Promise.all([
     db.departments.findUniqueOrThrow({ where: { id: departmentId } }),
     db.ddo_details.findFirst({ where: { department_id: departmentId, is_primary: true } }),
     db.gst_state_codes.findMany({ orderBy: { state_code: "asc" } }),
+    db.smtp_settings.findUnique({ where: { department_id: departmentId } }),
   ]);
 
   return (
@@ -42,6 +44,17 @@ export default async function DepartmentProfilePage() {
           designation: ddo?.designation ?? "",
           ddo_code: ddo?.ddo_code ?? "",
           treasury_registration_code: ddo?.treasury_registration_code ?? "",
+        }}
+      />
+      <SmtpSettingsForm
+        smtp={{
+          smtp_host: smtp?.smtp_host ?? "",
+          smtp_port: smtp?.smtp_port ?? 587,
+          smtp_username: smtp?.smtp_username ?? "",
+          smtp_from_email: smtp?.smtp_from_email ?? department.official_email ?? "",
+          smtp_from_name: smtp?.smtp_from_name ?? department.department_name,
+          use_tls: smtp?.use_tls ?? true,
+          isConfigured: !!smtp,
         }}
       />
     </div>

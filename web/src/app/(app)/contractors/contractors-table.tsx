@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchInput } from "@/components/search-input";
 import { ContractorFormDialog } from "./contractor-form-dialog";
+import { ContractorDetailsDialog } from "./contractor-details-dialog";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   ACTIVE: "default",
@@ -55,15 +56,16 @@ export function ContractorsTable({ contractors, can_edit }: { contractors: Contr
                 <TableHead>Firm Name</TableHead>
                 <TableHead>PAN</TableHead>
                 <TableHead>GSTIN</TableHead>
+                <TableHead>Mobile</TableHead>
                 <TableHead>Bank A/C</TableHead>
                 <TableHead>Status</TableHead>
-                {can_edit ? <TableHead className="text-right">Actions</TableHead> : null}
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     {contractors.length === 0 ? "No contractors yet." : "No contractors match your search."}
                   </TableCell>
                 </TableRow>
@@ -73,20 +75,22 @@ export function ContractorsTable({ contractors, can_edit }: { contractors: Contr
                     <TableCell className="font-medium">{c.firm_name}</TableCell>
                     <TableCell>{c.pan_number}</TableCell>
                     <TableCell>{c.gstin || "-"}</TableCell>
+                    <TableCell>{c.phone || "-"}</TableCell>
                     <TableCell>{c.account_number || "-"}</TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[c.status]}>{c.status}</Badge>
                     </TableCell>
-                    {can_edit ? (
-                      <TableCell className="text-right">
+                    <TableCell className="text-right space-x-2 whitespace-nowrap">
+                      <ContractorDetailsDialog contractor={c} />
+                      {can_edit ? (
                         <ContractorFormDialog
                           contractor={c}
                           triggerLabel="Edit"
                           triggerVariant="outline"
                           triggerSize="sm"
                         />
-                      </TableCell>
-                    ) : null}
+                      ) : null}
+                    </TableCell>
                   </TableRow>
                 ))
               )}

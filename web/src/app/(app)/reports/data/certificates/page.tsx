@@ -1,11 +1,14 @@
-import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
+import { PrintButton } from "@/components/print-button";
+import { ReportFilterBar } from "@/components/report-filter-bar";
+import { SendEmailDialog } from "@/components/send-email-dialog";
 import { requireModulePermission } from "@/lib/session";
 import { formatDateForReport } from "@/lib/reports";
 import { formatEnumLabel } from "@/lib/utils";
+import { emailReportCsv } from "@/app/(app)/reports/email-actions";
 import { getCertificatesReportRows } from "./data";
 
 export default async function CertificatesReportPage(props: PageProps<"/reports/data/certificates">) {
@@ -24,21 +27,20 @@ export default async function CertificatesReportPage(props: PageProps<"/reports/
         title="Certificates Report"
         description="Filter and export issued work experience certificates."
         action={
-          <a href={exportHref} className={buttonVariants({ variant: "default" }) + " bg-orange-600 text-white hover:bg-orange-700"}>
-            Export CSV
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <PrintButton />
+            <a href={exportHref} className={buttonVariants({ variant: "default" }) + " bg-orange-600 text-white hover:bg-orange-700"}>
+              Export CSV
+            </a>
+            <SendEmailDialog action={emailReportCsv} extraFields={{ reportType: "certificates", q: search }} />
+          </div>
         }
       />
-      <Card>
+      <Card className="no-print">
         <CardContent className="pt-6">
-          <form method="get" className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1.5">
-              <label htmlFor="q" className="text-sm font-medium">Search</label>
-              <input id="q" name="q" defaultValue={search} placeholder="Certificate #, contractor, work" className="h-9 w-64 rounded-md border bg-background px-3 text-sm" />
-            </div>
-            <button type="submit" className={buttonVariants({ variant: "secondary" })}>Apply</button>
-            <Link href="/reports/data/certificates" className={buttonVariants({ variant: "ghost" })}>Reset</Link>
-          </form>
+          <ReportFilterBar
+            fields={[{ type: "text", name: "q", label: "Search", placeholder: "Certificate #, contractor, work" }]}
+          />
         </CardContent>
       </Card>
       <Card>

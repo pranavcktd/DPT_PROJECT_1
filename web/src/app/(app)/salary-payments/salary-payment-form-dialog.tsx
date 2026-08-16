@@ -18,7 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn, formatEnumLabel } from "@/lib/utils";
+import { cn, formatEnumLabel, formatINR } from "@/lib/utils";
 import { PAYMENT_TYPES, salaryPaymentFormSchema, type SalaryPaymentFormInput, type SalaryPaymentFormValues } from "./schema";
 import { createSalaryPayment, updateSalaryPayment } from "./actions";
 
@@ -69,6 +69,9 @@ export function SalaryPaymentFormDialog({
   const employeeId = form.watch("employee_id");
   const paymentType = form.watch("payment_type");
   const selectedEmployee = employees.find((e) => e.id === employeeId);
+  const grossSalary = Number(form.watch("gross_salary")) || 0;
+  const itDeduction = Number(form.watch("it_deduction_amount")) || 0;
+  const netPayable = grossSalary - itDeduction;
 
   async function onSubmit(values: SalaryPaymentFormValues) {
     setServerError(null);
@@ -103,7 +106,7 @@ export function SalaryPaymentFormDialog({
       >
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[90vh] sm:max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Salary Payment" : "New Salary Payment"}</DialogTitle>
           <DialogDescription>Select an employee - their PAN is picked up automatically.</DialogDescription>
@@ -217,6 +220,11 @@ export function SalaryPaymentFormDialog({
                 </FormItem>
               )}
             />
+
+            <div className="flex items-center justify-between rounded-lg bg-lime-600 px-3 py-2 text-white sm:col-span-2">
+              <span className="text-sm font-semibold">Net Payable</span>
+              <span className="text-base font-bold">{formatINR(netPayable)}</span>
+            </div>
 
             <FormField
               control={form.control}

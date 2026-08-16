@@ -53,7 +53,7 @@ export function CancelPaymentDialog({ paymentId, invoiceNumber }: { paymentId: s
       <DialogTrigger className={buttonVariants({ variant: "destructive", size: "sm" })} render={<button type="button" />}>
         Cancel
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Cancel Payment {invoiceNumber}</DialogTitle>
           <DialogDescription>

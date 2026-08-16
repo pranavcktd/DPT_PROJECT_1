@@ -22,6 +22,14 @@ const TAX_REPORTS = [
   },
 ];
 
+const CERTIFICATE_REPORTS = [
+  {
+    href: "/reports/contractor-certificate",
+    title: "Contractor Payment Certificate",
+    description: "Select a contractor and a date range to generate a certificate covering every payment to them in that period.",
+  },
+];
+
 const MODULE_REPORTS: { href: string; title: string; description: string; permissionModule: ModuleCode }[] = [
   { href: "/reports/data/contractors", title: "Contractors Report", description: "Search, filter, and export the contractor directory.", permissionModule: "CONTRACTOR_MASTER" },
   { href: "/reports/data/schemes", title: "Schemes Report", description: "Search, filter, and export scheme budgets.", permissionModule: "SCHEME_MASTER" },
@@ -38,7 +46,7 @@ function ReportTile({ href, title, description, moduleKey }: { href: string; tit
   return (
     <Link
       href={href}
-      className="group flex items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-foreground/20"
+      className="group flex items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-foreground/20 hover:bg-accent/40"
     >
       <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl", theme.badge)}>
         <Icon className="size-5" />
@@ -71,6 +79,15 @@ export default async function ReportsPage() {
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Tax Reports</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {TAX_REPORTS.map((r) => (
+            <ReportTile key={r.href} {...r} moduleKey="reports" />
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Certificates</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {CERTIFICATE_REPORTS.map((r) => (
             <ReportTile key={r.href} {...r} moduleKey="reports" />
           ))}
         </div>

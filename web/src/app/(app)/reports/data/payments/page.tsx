@@ -1,12 +1,15 @@
-import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
+import { PrintButton } from "@/components/print-button";
+import { ReportFilterBar } from "@/components/report-filter-bar";
+import { SendEmailDialog } from "@/components/send-email-dialog";
 import { requireModulePermission } from "@/lib/session";
 import { formatDateForReport } from "@/lib/reports";
 import { formatINR } from "@/lib/utils";
+import { emailReportCsv } from "@/app/(app)/reports/email-actions";
 import { getPaymentsReportRows, type PaymentStatusFilter } from "./data";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = {
@@ -35,38 +38,36 @@ export default async function PaymentsReportPage(props: PageProps<"/reports/data
         title="Non-Salary Payments Report"
         description="Filter and export contractor payment entries."
         action={
-          <a href={exportHref} className={buttonVariants({ variant: "default" }) + " bg-orange-600 text-white hover:bg-orange-700"}>
-            Export CSV
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <PrintButton />
+            <a href={exportHref} className={buttonVariants({ variant: "default" }) + " bg-orange-600 text-white hover:bg-orange-700"}>
+              Export CSV
+            </a>
+            <SendEmailDialog action={emailReportCsv} extraFields={{ reportType: "payments", q: search, status, from, to }} />
+          </div>
         }
       />
-      <Card>
+      <Card className="no-print">
         <CardContent className="pt-6">
-          <form method="get" className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1.5">
-              <label htmlFor="q" className="text-sm font-medium">Search</label>
-              <input id="q" name="q" defaultValue={search} placeholder="Invoice #, contractor, work" className="h-9 w-64 rounded-md border bg-background px-3 text-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="status" className="text-sm font-medium">Status</label>
-              <select id="status" name="status" defaultValue={status} className="h-9 rounded-md border bg-background px-3 text-sm">
-                <option value="ALL">All</option>
-                <option value="SAVED">Saved</option>
-                <option value="APPROVED">Approved</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="from" className="text-sm font-medium">Treasury Date From</label>
-              <input id="from" name="from" type="date" defaultValue={from} className="h-9 rounded-md border bg-background px-3 text-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="to" className="text-sm font-medium">Treasury Date To</label>
-              <input id="to" name="to" type="date" defaultValue={to} className="h-9 rounded-md border bg-background px-3 text-sm" />
-            </div>
-            <button type="submit" className={buttonVariants({ variant: "secondary" })}>Apply</button>
-            <Link href="/reports/data/payments" className={buttonVariants({ variant: "ghost" })}>Reset</Link>
-          </form>
+          <ReportFilterBar
+            fields={[
+              { type: "text", name: "q", label: "Search", placeholder: "Invoice #, contractor, work" },
+              {
+                type: "select",
+                name: "status",
+                label: "Status",
+                defaultValue: "ALL",
+                options: [
+                  { value: "ALL", label: "All" },
+                  { value: "SAVED", label: "Saved" },
+                  { value: "APPROVED", label: "Approved" },
+                  { value: "CANCELLED", label: "Cancelled" },
+                ],
+              },
+              { type: "date", name: "from", label: "Treasury Date From" },
+              { type: "date", name: "to", label: "Treasury Date To" },
+            ]}
+          />
         </CardContent>
       </Card>
       <Card>

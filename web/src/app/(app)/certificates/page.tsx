@@ -14,7 +14,7 @@ export default async function CertificatesPage() {
 
   const certificates = await db.work_experience_certificates.findMany({
     where: { department_id: departmentId },
-    include: { works: { select: { work_name: true } }, contractors: { select: { firm_name: true } } },
+    include: { works: { select: { work_name: true } }, contractors: { select: { firm_name: true, email: true } } },
     orderBy: { issued_at: "desc" },
   });
 
@@ -22,6 +22,7 @@ export default async function CertificatesPage() {
     id: c.id.toString(),
     certificate_number: c.certificate_number,
     contractor_name: c.contractors.firm_name,
+    contractor_email: c.contractors.email,
     work_name: c.works.work_name,
     executed_value: Number(c.executed_value),
     performance_rating_label: c.performance_rating_label,

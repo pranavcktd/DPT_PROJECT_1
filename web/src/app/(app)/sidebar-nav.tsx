@@ -26,7 +26,7 @@ function NavLinkRow({ item, onNavigate, indent }: { item: NavLink; onNavigate?: 
       className={cn(
         "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
         indent && "ml-3",
-        active ? theme.navActive : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        active ? theme.navActive : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
       )}
     >
       <span

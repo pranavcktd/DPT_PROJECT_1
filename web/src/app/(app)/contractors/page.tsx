@@ -1,8 +1,10 @@
+import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { MODULE_THEME } from "@/lib/module-theme";
 import { db } from "@/lib/db";
 import { getModulePermissions } from "@/lib/session";
 import { ContractorFormDialog } from "./contractor-form-dialog";
+import { ContractorsImportDialog } from "./import-dialog";
 import { ContractorsTable } from "./contractors-table";
 
 export default async function ContractorsPage() {
@@ -39,7 +41,15 @@ export default async function ContractorsPage() {
         title="Contractor Directory"
         description="Approved contractors, PAN/GSTIN, and bank details."
         action={
-          can_create ? <ContractorFormDialog triggerLabel="New Contractor" triggerClassName={theme.button} /> : null
+          can_create ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <a href="/api/contractors/export" className={buttonVariants({ variant: "outline" })}>
+                Export
+              </a>
+              <ContractorsImportDialog />
+              <ContractorFormDialog triggerLabel="New Contractor" triggerClassName={theme.button} />
+            </div>
+          ) : null
         }
       />
       <ContractorsTable contractors={rows} can_edit={can_edit} />

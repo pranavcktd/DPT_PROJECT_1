@@ -87,7 +87,7 @@ export function EmployeeFormDialog({
       >
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[90vh] sm:max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Employee" : "New Employee"}</DialogTitle>
           <DialogDescription>Employee name and PAN are required for salary TDS reporting.</DialogDescription>

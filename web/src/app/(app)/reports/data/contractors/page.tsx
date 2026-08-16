@@ -1,10 +1,13 @@
-import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
+import { PrintButton } from "@/components/print-button";
+import { ReportFilterBar } from "@/components/report-filter-bar";
+import { SendEmailDialog } from "@/components/send-email-dialog";
 import { requireModulePermission } from "@/lib/session";
+import { emailReportCsv } from "@/app/(app)/reports/email-actions";
 import { getContractorsReportRows, type ContractorStatusFilter } from "./data";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = {
@@ -31,30 +34,34 @@ export default async function ContractorsReportPage(props: PageProps<"/reports/d
         title="Contractors Report"
         description="Filter and export the contractor directory."
         action={
-          <a href={exportHref} className={buttonVariants({ variant: "default" }) + " bg-orange-600 text-white hover:bg-orange-700"}>
-            Export CSV
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <PrintButton />
+            <a href={exportHref} className={buttonVariants({ variant: "default" }) + " bg-orange-600 text-white hover:bg-orange-700"}>
+              Export CSV
+            </a>
+            <SendEmailDialog action={emailReportCsv} extraFields={{ reportType: "contractors", q: search, status }} />
+          </div>
         }
       />
-      <Card>
+      <Card className="no-print">
         <CardContent className="pt-6">
-          <form method="get" className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1.5">
-              <label htmlFor="q" className="text-sm font-medium">Search</label>
-              <input id="q" name="q" defaultValue={search} placeholder="Firm name, PAN, GSTIN, vendor code" className="h-9 w-64 rounded-md border bg-background px-3 text-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="status" className="text-sm font-medium">Status</label>
-              <select id="status" name="status" defaultValue={status} className="h-9 rounded-md border bg-background px-3 text-sm">
-                <option value="ALL">All</option>
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-                <option value="BLACKLISTED">Blacklisted</option>
-              </select>
-            </div>
-            <button type="submit" className={buttonVariants({ variant: "secondary" })}>Apply</button>
-            <Link href="/reports/data/contractors" className={buttonVariants({ variant: "ghost" })}>Reset</Link>
-          </form>
+          <ReportFilterBar
+            fields={[
+              { type: "text", name: "q", label: "Search", placeholder: "Firm name, PAN, GSTIN, vendor code" },
+              {
+                type: "select",
+                name: "status",
+                label: "Status",
+                defaultValue: "ALL",
+                options: [
+                  { value: "ALL", label: "All" },
+                  { value: "ACTIVE", label: "Active" },
+                  { value: "INACTIVE", label: "Inactive" },
+                  { value: "BLACKLISTED", label: "Blacklisted" },
+                ],
+              },
+            ]}
+          />
         </CardContent>
       </Card>
       <Card>

@@ -11,6 +11,7 @@ import {
   FileBarChart,
   UserRound,
   Wallet,
+  UserCog,
   type LucideIcon,
 } from "lucide-react";
 
@@ -26,7 +27,8 @@ export type ModuleKey =
   | "account"
   | "reports"
   | "employees"
-  | "salaryPayments";
+  | "salaryPayments"
+  | "staff";
 
 export const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -41,6 +43,7 @@ export const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   reports: FileBarChart,
   employees: UserRound,
   salaryPayments: Wallet,
+  staff: UserCog,
 };
 
 /**
@@ -175,5 +178,14 @@ export const MODULE_THEME: Record<
     accentBar: "bg-lime-500",
     accentBox: "bg-lime-600",
     text: "text-lime-700",
+  },
+  staff: {
+    badge: "bg-pink-100 text-pink-700",
+    navActive: "bg-pink-600 text-white",
+    button: "bg-pink-600 text-white hover:bg-pink-700",
+    pill: "bg-pink-50 text-pink-700 border-pink-200",
+    accentBar: "bg-pink-500",
+    accentBox: "bg-pink-600",
+    text: "text-pink-700",
   },
 };

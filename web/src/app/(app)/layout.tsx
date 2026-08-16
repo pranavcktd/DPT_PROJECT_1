@@ -3,12 +3,14 @@ import Link from "next/link";
 import { KeyRound, Menu } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { IdleLogoutGuard } from "@/components/idle-logout-guard";
+import { SignOutDialog } from "@/components/sign-out-dialog";
 import { getModulePermissions, requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
-import { signOutAction } from "./dashboard/actions";
-import { SidebarNav, type NavItem } from "./sidebar-nav";
+import { MODULE_REGISTRY } from "@/lib/module-registry";
+import { SidebarNav, type NavItem, type NavLink } from "./sidebar-nav";
 
 const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
@@ -18,13 +20,7 @@ const ROLE_LABELS: Record<string, string> = {
   AUDITOR: "Auditor / Viewer",
 };
 
-const BASE_NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-  { href: "/contractors", label: "Contractors", icon: "contractors" },
-  { href: "/schemes", label: "Schemes", icon: "schemes" },
-  { href: "/works", label: "Works", icon: "works" },
-  { href: "/certificates", label: "Certificates", icon: "certificates" },
-];
+const DASHBOARD_NAV_ITEM: NavItem = { href: "/dashboard", label: "Dashboard", icon: "dashboard" };
 
 const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
@@ -51,32 +47,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       })
     : null;
 
-  const canViewDepartmentSettings = user.departmentId
-    ? (await getModulePermissions("DEPARTMENT_SETTINGS")).can_view
-    : false;
-  const canViewTaxReports = user.departmentId ? (await getModulePermissions("TAX_LEDGER_REPORT")).can_view : false;
-  const canViewEmployees = user.departmentId ? (await getModulePermissions("EMPLOYEE_MASTER")).can_view : false;
-  const canViewNonSalaryPayments = user.departmentId ? (await getModulePermissions("PAYMENT_ENTRY")).can_view : false;
-  const canViewSalaryPayments = user.departmentId ? (await getModulePermissions("SALARY_PAYMENT_ENTRY")).can_view : false;
-
-  const paymentsGroupChildren = [
-    ...(canViewNonSalaryPayments ? [{ href: "/payments", label: "Non-Salary Payments", icon: "payments" as const }] : []),
-    ...(canViewSalaryPayments ? [{ href: "/salary-payments", label: "Salary Payments", icon: "salaryPayments" as const }] : []),
-  ];
-
   const navItems: NavItem[] =
     user.roleCode === "SUPER_ADMIN"
       ? SUPER_ADMIN_NAV_ITEMS
       : [
-          ...BASE_NAV_ITEMS,
-          ...(canViewEmployees ? [{ href: "/employees", label: "Employees", icon: "employees" as const }] : []),
-          ...(paymentsGroupChildren.length > 0
-            ? [{ label: "Payments", icon: "payments" as const, children: paymentsGroupChildren }]
-            : []),
-          ...(canViewTaxReports ? [{ href: "/reports", label: "Tax Reports", icon: "reports" as const }] : []),
-          ...(canViewDepartmentSettings
-            ? [{ href: "/department", label: "Department Profile", icon: "department" as const }]
-            : []),
+          DASHBOARD_NAV_ITEM,
+          ...(
+            await Promise.all(
+              MODULE_REGISTRY.map(async (entry): Promise<NavLink | null> => {
+                const { can_view } = await getModulePermissions(entry.moduleCode);
+                return can_view ? { href: entry.href, label: entry.navLabel, icon: entry.key } : null;
+              })
+            )
+          ).filter((item): item is NavLink => item !== null),
         ];
 
   const brand = (
@@ -122,25 +105,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <KeyRound className="size-3.5" />
           Change Password
         </Link>
-        <form action={signOutAction}>
-          <Button type="submit" variant="ghost" size="sm">
-            Sign out
-          </Button>
-        </form>
+        <SignOutDialog />
       </div>
     </div>
   );
 
   return (
     <div className="flex min-h-svh">
-      <aside className="hidden w-64 shrink-0 flex-col gap-4 border-r bg-background p-4 md:flex">
+      <IdleLogoutGuard />
+      <aside className="no-print hidden w-64 shrink-0 flex-col gap-4 border-r bg-background p-4 md:flex">
         {brand}
         <SidebarNav items={navItems} />
         <div className="mt-auto">{userFooter}</div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3 md:hidden">
+        <header className="no-print flex items-center justify-between gap-3 border-b bg-background px-4 py-3 md:hidden">
           <Sheet>
             {/* Plain <button> + buttonVariants (not <Button>) - nesting a component that
                 sets its own data-slot inside an eagerly SSR-rendered trigger's render prop

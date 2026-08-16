@@ -109,7 +109,7 @@ export function WorkFormDialog({
       >
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[90vh] sm:max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Work Order" : "New Work Order"}</DialogTitle>
           <DialogDescription>

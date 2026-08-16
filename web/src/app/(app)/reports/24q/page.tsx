@@ -1,11 +1,14 @@
-import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
+import { PrintButton } from "@/components/print-button";
+import { ReportFilterBar } from "@/components/report-filter-bar";
+import { SendEmailDialog } from "@/components/send-email-dialog";
 import { requireModulePermission } from "@/lib/session";
 import { formatINR } from "@/lib/utils";
 import { FY_QUARTERS, currentFinancialYear, financialYearOptions, formatDateForReport } from "@/lib/reports";
+import { emailReportCsv } from "../email-actions";
 import { get24qReportRows } from "./data";
 
 function currentQuarter(): 1 | 2 | 3 | 4 {
@@ -39,44 +42,38 @@ export default async function Form24qReportPage(props: PageProps<"/reports/24q">
         title="TDS Quarterly Return (Form 24Q) - Salaried Employees"
         description="Employee-wise Income Tax TDS deducted, grouped by financial year and quarter, based on the treasury payment date."
         action={
-          <a href={exportHref} className={buttonVariants({ variant: "default" }) + " bg-orange-600 text-white hover:bg-orange-700"}>
-            Export CSV
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <PrintButton />
+            <a href={exportHref} className={buttonVariants({ variant: "default" }) + " bg-orange-600 text-white hover:bg-orange-700"}>
+              Export CSV
+            </a>
+            <SendEmailDialog action={emailReportCsv} extraFields={{ reportType: "24q", fy, quarter: String(quarter), employee }} />
+          </div>
         }
       />
 
-      <Card>
-        <CardContent className="pt-6">
-          <form method="get" className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1.5">
-              <label htmlFor="fy" className="text-sm font-medium">Financial Year</label>
-              <select id="fy" name="fy" defaultValue={fy} className="h-9 rounded-md border bg-background px-3 text-sm">
-                {financialYearOptions().map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="quarter" className="text-sm font-medium">Quarter</label>
-              <select id="quarter" name="quarter" defaultValue={quarter} className="h-9 rounded-md border bg-background px-3 text-sm">
-                {FY_QUARTERS.map((q) => (
-                  <option key={q.value} value={q.value}>{q.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="employee" className="text-sm font-medium">Search Employee</label>
-              <input
-                id="employee"
-                name="employee"
-                defaultValue={employee}
-                placeholder="Employee name"
-                className="h-9 w-56 rounded-md border bg-background px-3 text-sm"
-              />
-            </div>
-            <button type="submit" className={buttonVariants({ variant: "secondary" })}>Apply</button>
-            <Link href="/reports/24q" className={buttonVariants({ variant: "ghost" })}>Reset</Link>
-          </form>
+      <Card className="no-print">
+
+<CardContent className="pt-6">
+          <ReportFilterBar
+            fields={[
+              {
+                type: "select",
+                name: "fy",
+                label: "Financial Year",
+                defaultValue: fy,
+                options: financialYearOptions().map((opt) => ({ value: opt, label: opt })),
+              },
+              {
+                type: "select",
+                name: "quarter",
+                label: "Quarter",
+                defaultValue: String(quarter),
+                options: FY_QUARTERS.map((q) => ({ value: String(q.value), label: q.label })),
+              },
+              { type: "text", name: "employee", label: "Search Employee", placeholder: "Employee name" },
+            ]}
+          />
         </CardContent>
       </Card>
 

@@ -5,6 +5,7 @@ import { MODULE_THEME } from "@/lib/module-theme";
 import { cn } from "@/lib/utils";
 import { db } from "@/lib/db";
 import { getModulePermissions } from "@/lib/session";
+import { PaymentsImportDialog } from "./import-dialog";
 import { PaymentsTable } from "./payments-table";
 
 export default async function PaymentsPage() {
@@ -15,7 +16,7 @@ export default async function PaymentsPage() {
 
   const payments = await db.payments.findMany({
     where: { department_id: departmentId },
-    include: { works: { select: { work_name: true } } },
+    include: { works: { select: { work_name: true } }, contractors: { select: { email: true } } },
     orderBy: { created_at: "desc" },
   });
 
@@ -23,6 +24,7 @@ export default async function PaymentsPage() {
     id: p.id.toString(),
     invoice_number: p.invoice_number,
     contractor_name_snapshot: p.contractor_name_snapshot,
+    contractor_email: p.contractors.email,
     work_name: p.works.work_name,
     base_cost: Number(p.base_cost),
     net_payable_amount: Number(p.net_payable_amount ?? 0),
@@ -38,9 +40,15 @@ export default async function PaymentsPage() {
         description="Running Account bills, statutory deductions, and treasury references for contractors."
         action={
           can_create ? (
-            <Link href="/payments/new" className={cn(buttonVariants({ variant: "default" }), theme.button)}>
-              New Payment
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <a href="/api/payments/export" className={buttonVariants({ variant: "outline" })}>
+                Export
+              </a>
+              <PaymentsImportDialog />
+              <Link href="/payments/new" className={cn(buttonVariants({ variant: "default" }), theme.button)}>
+                New Payment
+              </Link>
+            </div>
           ) : null
         }
       />

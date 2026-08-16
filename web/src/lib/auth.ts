@@ -78,6 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           roleCode: user.roles.role_code,
           departmentId: user.department_id ? user.department_id.toString() : null,
+          mustChangePassword: user.must_change_password,
         };
       },
     }),
@@ -88,6 +89,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id!;
         token.roleCode = user.roleCode;
         token.departmentId = user.departmentId;
+        token.mustChangePassword = user.mustChangePassword;
       }
       return token;
     },
@@ -95,6 +97,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.id = token.id;
       session.user.roleCode = token.roleCode;
       session.user.departmentId = token.departmentId;
+      session.user.mustChangePassword = token.mustChangePassword;
       return session;
     },
   },

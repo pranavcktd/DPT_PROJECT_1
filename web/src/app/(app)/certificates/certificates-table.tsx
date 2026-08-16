@@ -6,12 +6,15 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchInput } from "@/components/search-input";
+import { SendEmailDialog } from "@/components/send-email-dialog";
 import { formatEnumLabel } from "@/lib/utils";
+import { emailWorkExperienceCertificate } from "./email-actions";
 
 export type CertificateRow = {
   id: string;
   certificate_number: string;
   contractor_name: string;
+  contractor_email: string | null;
   work_name: string;
   executed_value: number;
   performance_rating_label: string | null;
@@ -43,7 +46,7 @@ export function CertificatesTable({ certificates }: { certificates: CertificateR
                 <TableHead className="text-right">Executed Value</TableHead>
                 <TableHead>Rating</TableHead>
                 <TableHead>Issued</TableHead>
-                <TableHead className="text-right">PDF</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -68,7 +71,7 @@ export function CertificatesTable({ certificates }: { certificates: CertificateR
                       </Badge>
                     </TableCell>
                     <TableCell>{c.issued_at}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right space-x-2 whitespace-nowrap">
                       <a
                         href={`/api/work-experience-certificates/${c.id}/certificate`}
                         target="_blank"
@@ -77,6 +80,13 @@ export function CertificatesTable({ certificates }: { certificates: CertificateR
                       >
                         View PDF
                       </a>
+                      <SendEmailDialog
+                        action={emailWorkExperienceCertificate}
+                        defaultEmail={c.contractor_email ?? ""}
+                        extraFields={{ certificateId: c.id }}
+                        triggerLabel="Email"
+                        size="sm"
+                      />
                     </TableCell>
                   </TableRow>
                 ))

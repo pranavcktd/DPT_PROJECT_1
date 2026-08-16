@@ -17,7 +17,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { onboardDepartment } from "./actions";
-import { DEFAULT_PASSWORD } from "./constants";
+import { DEFAULT_PASSWORD } from "@/lib/auth-constants";
 import { onboardDepartmentSchema, type OnboardDepartmentInput, type OnboardDepartmentValues } from "./schema";
 
 export function DepartmentFormDialog() {
@@ -73,7 +73,7 @@ export function DepartmentFormDialog() {
       >
         Onboard Department
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] sm:max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Onboard Department</DialogTitle>
           <DialogDescription>

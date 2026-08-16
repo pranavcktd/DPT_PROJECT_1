@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/session";
 import { writeAuditLog } from "@/lib/audit";
 import { changePasswordSchema } from "./schema";
 
-export type ActionState = { error: string | null; success?: boolean };
+export type ActionState = { error: string | null; success?: boolean; wasForced?: boolean };
 
 export async function changePassword(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireUser();
@@ -22,7 +22,11 @@ export async function changePassword(_prev: ActionState, formData: FormData): Pr
   }
 
   const password_hash = await bcrypt.hash(parsed.data.new_password, 10);
-  await db.users.update({ where: { id: existing.id }, data: { password_hash } });
+  const wasForced = existing.must_change_password;
+  await db.users.update({
+    where: { id: existing.id },
+    data: { password_hash, must_change_password: false },
+  });
 
   await writeAuditLog({
     departmentId: existing.department_id,
@@ -30,8 +34,8 @@ export async function changePassword(_prev: ActionState, formData: FormData): Pr
     tableName: "users",
     recordId: existing.id,
     action: "UPDATE",
-    reason: "Self-service password change",
+    reason: wasForced ? "Forced password change (first login after reset)" : "Self-service password change",
   });
 
-  return { error: null, success: true };
+  return { error: null, success: true, wasForced };
 }

@@ -1,8 +1,10 @@
+import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { MODULE_THEME } from "@/lib/module-theme";
 import { db } from "@/lib/db";
 import { getModulePermissions } from "@/lib/session";
 import { SalaryPaymentFormDialog } from "./salary-payment-form-dialog";
+import { SalaryPaymentsImportDialog } from "./import-dialog";
 import { SalaryPaymentsTable } from "./salary-payments-table";
 
 export default async function SalaryPaymentsPage() {
@@ -44,7 +46,13 @@ export default async function SalaryPaymentsPage() {
         description="Salary, DA, arrears, and other employee payment entries."
         action={
           can_create ? (
-            <SalaryPaymentFormDialog employees={employeeOptions} triggerLabel="New Salary Payment" triggerClassName={theme.button} />
+            <div className="flex flex-wrap items-center gap-2">
+              <a href="/api/salary-payments/export" className={buttonVariants({ variant: "outline" })}>
+                Export
+              </a>
+              <SalaryPaymentsImportDialog />
+              <SalaryPaymentFormDialog employees={employeeOptions} triggerLabel="New Salary Payment" triggerClassName={theme.button} />
+            </div>
           ) : null
         }
       />

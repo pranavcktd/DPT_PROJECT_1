@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { deleteDepartment, resetDepartmentAdminPassword, setDepartmentStatus } from "./actions";
-import { DEFAULT_PASSWORD } from "./constants";
+import { DEFAULT_PASSWORD } from "@/lib/auth-constants";
 
 export function ToggleStatusDialog({
   departmentId,
@@ -52,7 +52,7 @@ export function ToggleStatusDialog({
       >
         {status === "ACTIVE" ? "Disable" : "Enable"}
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
             {status === "ACTIVE" ? "Disable" : "Enable"} {departmentName}
@@ -112,7 +112,7 @@ export function ResetPasswordDialog({ departmentId, departmentName }: { departme
       <DialogTrigger className={buttonVariants({ variant: "outline", size: "sm" })} render={<button type="button" />}>
         Reset Password
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Reset Password - {departmentName}</DialogTitle>
           <DialogDescription>
@@ -173,7 +173,7 @@ export function DeleteDepartmentDialog({ departmentId, tenantCode }: { departmen
       <DialogTrigger className={buttonVariants({ variant: "destructive", size: "sm" })} render={<button type="button" />}>
         Delete
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Delete department permanently?</DialogTitle>
           <DialogDescription>

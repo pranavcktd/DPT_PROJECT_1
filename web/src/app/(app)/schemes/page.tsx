@@ -1,8 +1,10 @@
+import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { MODULE_THEME } from "@/lib/module-theme";
 import { db } from "@/lib/db";
 import { getModulePermissions } from "@/lib/session";
 import { SchemeFormDialog } from "./scheme-form-dialog";
+import { SchemesImportDialog } from "./import-dialog";
 import { SchemesTable } from "./schemes-table";
 
 export default async function SchemesPage() {
@@ -37,7 +39,17 @@ export default async function SchemesPage() {
         moduleKey="schemes"
         title="Work Schemes"
         description="Government schemes and their sanctioned budgets."
-        action={can_create ? <SchemeFormDialog triggerLabel="New Scheme" triggerClassName={theme.button} /> : null}
+        action={
+          can_create ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <a href="/api/schemes/export" className={buttonVariants({ variant: "outline" })}>
+                Export
+              </a>
+              <SchemesImportDialog />
+              <SchemeFormDialog triggerLabel="New Scheme" triggerClassName={theme.button} />
+            </div>
+          ) : null
+        }
       />
       <SchemesTable schemes={rows} can_edit={can_edit} />
     </div>

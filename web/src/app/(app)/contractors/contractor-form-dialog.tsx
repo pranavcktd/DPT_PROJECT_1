@@ -97,7 +97,7 @@ export function ContractorFormDialog({
       >
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] sm:max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Contractor" : "New Contractor"}</DialogTitle>
           <DialogDescription>

@@ -7,8 +7,10 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchInput } from "@/components/search-input";
+import { SendEmailDialog } from "@/components/send-email-dialog";
 import { formatINR } from "@/lib/utils";
 import { CancelPaymentDialog } from "./cancel-payment-dialog";
+import { emailPaymentCertificate } from "./email-actions";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   SAVED: "secondary",
@@ -20,6 +22,7 @@ export type PaymentRow = {
   id: string;
   invoice_number: string;
   contractor_name_snapshot: string;
+  contractor_email: string | null;
   work_name: string;
   base_cost: number;
   net_payable_amount: number;
@@ -97,6 +100,15 @@ export function PaymentsTable({
                             >
                               Certificate
                             </a>
+                          ) : null}
+                          {canViewCertificate && p.status !== "CANCELLED" ? (
+                            <SendEmailDialog
+                              action={emailPaymentCertificate}
+                              defaultEmail={p.contractor_email ?? ""}
+                              extraFields={{ paymentId: p.id }}
+                              triggerLabel="Email"
+                              size="sm"
+                            />
                           ) : null}
                           {can_edit && canModify ? (
                             <Link href={`/payments/${p.id}/edit`} className={buttonVariants({ variant: "outline", size: "sm" })}>

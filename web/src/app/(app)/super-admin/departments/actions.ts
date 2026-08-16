@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/session";
 import { writeAuditLog } from "@/lib/audit";
 import { onboardDepartmentSchema, subscriptionSchema } from "./schema";
-import { DEFAULT_PASSWORD } from "./constants";
+import { DEFAULT_PASSWORD } from "@/lib/auth-constants";
 
 export type ActionState = { error: string | null; success?: boolean; tenantCode?: string; email?: string };
 
@@ -79,6 +79,7 @@ export async function onboardDepartment(_prev: ActionState, formData: FormData):
           name: `${values.department_name} Admin`,
           email: values.official_email,
           password_hash: passwordHash,
+          must_change_password: true,
           status: "ACTIVE",
           created_by: BigInt(superAdmin.id),
         },
@@ -219,7 +220,10 @@ export async function resetDepartmentAdminPassword(departmentId: string): Promis
   if (!admin) return { error: "No Department Admin account found for this department." };
 
   const password_hash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
-  await db.users.update({ where: { id: admin.id }, data: { password_hash } });
+  await db.users.update({
+    where: { id: admin.id },
+    data: { password_hash, must_change_password: true },
+  });
 
   await writeAuditLog({
     departmentId: id,

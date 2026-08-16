@@ -1,54 +1,10 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
-import { MODULE_ICONS, MODULE_THEME, type ModuleKey } from "@/lib/module-theme";
+import { MODULE_ICONS, MODULE_THEME } from "@/lib/module-theme";
+import { MODULE_REGISTRY } from "@/lib/module-registry";
 import { cn } from "@/lib/utils";
 import { db } from "@/lib/db";
 import { getModulePermissions, requireUser } from "@/lib/session";
-
-const TILES: { moduleKey: ModuleKey; href: string; title: string; description: string; permissionModule: Parameters<typeof getModulePermissions>[0] }[] = [
-  {
-    moduleKey: "contractors",
-    href: "/contractors",
-    title: "Contractors",
-    description: "Directory of approved firms",
-    permissionModule: "CONTRACTOR_MASTER",
-  },
-  {
-    moduleKey: "schemes",
-    href: "/schemes",
-    title: "Schemes",
-    description: "Budgets by government scheme",
-    permissionModule: "SCHEME_MASTER",
-  },
-  {
-    moduleKey: "works",
-    href: "/works",
-    title: "Works",
-    description: "Work orders raised on schemes",
-    permissionModule: "WORK_MASTER",
-  },
-  {
-    moduleKey: "payments",
-    href: "/payments",
-    title: "Payments",
-    description: "RA bills and treasury references",
-    permissionModule: "PAYMENT_ENTRY",
-  },
-  {
-    moduleKey: "certificates",
-    href: "/certificates",
-    title: "Certificates",
-    description: "Work experience certificates",
-    permissionModule: "WORK_EXPERIENCE_CERTIFICATE",
-  },
-  {
-    moduleKey: "department",
-    href: "/department",
-    title: "Department Profile",
-    description: "Letterhead, DDO, and identity",
-    permissionModule: "DEPARTMENT_SETTINGS",
-  },
-];
 
 export default async function DashboardPage() {
   const user = await requireUser();
@@ -79,7 +35,7 @@ export default async function DashboardPage() {
         </div>
         <Link
           href="/super-admin/departments"
-          className="group flex items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-foreground/20 sm:max-w-sm"
+          className="group flex items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-foreground/20 hover:bg-accent/40 sm:max-w-sm"
         >
           <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl", MODULE_THEME.superAdmin.badge)}>
             {(() => {
@@ -99,9 +55,11 @@ export default async function DashboardPage() {
   const tiles = user.departmentId
     ? (
         await Promise.all(
-          TILES.map(async (tile) => {
-            const { can_view } = await getModulePermissions(tile.permissionModule);
-            return can_view ? tile : null;
+          MODULE_REGISTRY.map(async (entry) => {
+            const { can_view } = await getModulePermissions(entry.moduleCode);
+            return can_view
+              ? { moduleKey: entry.key, href: entry.href, title: entry.dashboardTitle, description: entry.dashboardDescription }
+              : null;
           }),
         )
       ).filter((t) => t !== null)
@@ -120,7 +78,7 @@ export default async function DashboardPage() {
               <Link
                 key={tile.href}
                 href={tile.href}
-                className="group flex items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-foreground/20"
+                className="group flex items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-foreground/20 hover:bg-accent/40"
               >
                 <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl", theme.badge)}>
                   <Icon className="size-5" />

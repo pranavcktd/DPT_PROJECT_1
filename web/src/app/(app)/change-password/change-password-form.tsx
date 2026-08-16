@@ -9,10 +9,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { changePasswordSchema, type ChangePasswordValues } from "./schema";
 import { changePassword } from "./actions";
+import { signOutAction } from "../dashboard/actions";
 
-export function ChangePasswordForm() {
+export function ChangePasswordForm({ forced = false }: { forced?: boolean }) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
 
   const form = useForm<ChangePasswordValues>({
     resolver: zodResolver(changePasswordSchema),
@@ -30,6 +32,14 @@ export function ChangePasswordForm() {
       setServerError(result.error);
       return;
     }
+
+    if (result.wasForced) {
+      setSuccessMessage("Password changed. Please sign in again with your new password.");
+      setRedirecting(true);
+      await signOutAction();
+      return;
+    }
+
     setSuccessMessage("Password changed successfully.");
     form.reset();
   }
@@ -39,7 +49,9 @@ export function ChangePasswordForm() {
       <CardHeader>
         <CardTitle>Change Password</CardTitle>
         <CardDescription>
-          Use this to set your own password after your first login, or any time you want to update it.
+          {forced
+            ? "You must set a new password before continuing."
+            : "Use this to set your own password after your first login, or any time you want to update it."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -89,8 +101,8 @@ export function ChangePasswordForm() {
             {successMessage ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
 
             <div>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Saving..." : "Change Password"}
+              <Button type="submit" disabled={form.formState.isSubmitting || redirecting}>
+                {redirecting ? "Redirecting..." : form.formState.isSubmitting ? "Saving..." : "Change Password"}
               </Button>
             </div>
           </form>

@@ -38,6 +38,21 @@ type ContractorOption = {
 
 type FormReturn = UseFormReturn<PaymentFormInput, unknown, PaymentFormValues>;
 
+const TABS = ["work", "invoice", "treasury"] as const;
+type TabKey = (typeof TABS)[number];
+
+const TAB_FIELDS: Record<TabKey, (keyof PaymentFormInput)[]> = {
+  work: ["work_id", "contractor_id", "agreement_number", "agreement_date"],
+  invoice: ["invoice_number", "invoice_date", "base_cost", "gst_rate", "it_tds_rate", "gst_tds_rate", "labour_cess_rate"],
+  treasury: ["treasury_token_number", "treasury_payment_date"],
+};
+
+const TAB_LABELS: Record<TabKey, string> = {
+  work: "Work & Contractor",
+  invoice: "Invoice & Deductions",
+  treasury: "Treasury",
+};
+
 const DEDUCTION_TYPE_LABELS: Record<DeductionType, string> = {
   NOT_APPLICABLE: "Not Applicable",
   PERCENTAGE: "Percentage (%)",
@@ -176,7 +191,8 @@ export function PaymentForm({
 }) {
   const router = useRouter();
   const isEdit = !!payment;
-  const [activeTab, setActiveTab] = useState("work");
+  const [activeTab, setActiveTab] = useState<TabKey>("work");
+  const [completedTabs, setCompletedTabs] = useState<Set<TabKey>>(new Set());
   const [serverError, setServerError] = useState<string | null>(null);
 
   const form = useForm<PaymentFormInput, unknown, PaymentFormValues>({
@@ -248,6 +264,20 @@ export function PaymentForm({
       ? { ...selectedWork, utilized: selectedWork.utilized - ownExistingBaseCost, remaining: effectiveRemaining! }
       : selectedWork;
 
+  async function goToTab(target: TabKey) {
+    const currentIndex = TABS.indexOf(activeTab);
+    const targetIndex = TABS.indexOf(target);
+    if (targetIndex <= currentIndex) {
+      setActiveTab(target);
+      return;
+    }
+    const valid = await form.trigger(TAB_FIELDS[activeTab]);
+    if (valid) {
+      setCompletedTabs((prev) => new Set(prev).add(activeTab));
+      setActiveTab(target);
+    }
+  }
+
   async function onSubmit(values: PaymentFormValues) {
     setServerError(null);
     const formData = new FormData();
@@ -273,11 +303,25 @@ export function PaymentForm({
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as string)}>
+              <Tabs value={activeTab} onValueChange={(v) => goToTab(v as TabKey)}>
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="work">1. Work &amp; Contractor</TabsTrigger>
-                  <TabsTrigger value="invoice">2. Invoice &amp; Deductions</TabsTrigger>
-                  <TabsTrigger value="treasury">3. Treasury</TabsTrigger>
+                  {TABS.map((tab, index) => (
+                    <TabsTrigger key={tab} value={tab} className="gap-1.5">
+                      <span
+                        className={
+                          "flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold " +
+                          (completedTabs.has(tab)
+                            ? "bg-emerald-600 text-white"
+                            : activeTab === tab
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground")
+                        }
+                      >
+                        {completedTabs.has(tab) ? "✓" : index + 1}
+                      </span>
+                      {TAB_LABELS[tab]}
+                    </TabsTrigger>
+                  ))}
                 </TabsList>
 
                 <TabsContent value="work" className="space-y-4 pt-4">
@@ -391,7 +435,7 @@ export function PaymentForm({
                   ) : null}
 
                   <div className="flex justify-end">
-                    <Button type="button" onClick={() => setActiveTab("invoice")}>
+                    <Button type="button" onClick={() => goToTab("invoice")}>
                       Next: Invoice &amp; Deductions
                     </Button>
                   </div>
@@ -471,10 +515,10 @@ export function PaymentForm({
                   />
 
                   <div className="flex justify-between">
-                    <Button type="button" variant="outline" onClick={() => setActiveTab("work")}>
+                    <Button type="button" variant="outline" onClick={() => goToTab("work")}>
                       Back
                     </Button>
-                    <Button type="button" onClick={() => setActiveTab("treasury")}>
+                    <Button type="button" onClick={() => goToTab("treasury")}>
                       Next: Treasury
                     </Button>
                   </div>
@@ -526,7 +570,7 @@ export function PaymentForm({
                   {serverError ? <p className="text-sm text-destructive">{serverError}</p> : null}
 
                   <div className="flex justify-between">
-                    <Button type="button" variant="outline" onClick={() => setActiveTab("invoice")}>
+                    <Button type="button" variant="outline" onClick={() => goToTab("invoice")}>
                       Back
                     </Button>
                     <Button

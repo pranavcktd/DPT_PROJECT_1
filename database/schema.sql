@@ -123,6 +123,7 @@ CREATE TABLE users (
   email         VARCHAR(150) NOT NULL UNIQUE,
   phone         VARCHAR(20)  NULL,
   password_hash VARCHAR(255) NOT NULL,
+  must_change_password BOOLEAN NOT NULL DEFAULT FALSE,  -- set TRUE whenever an admin resets a password to the default
   status        users_status NOT NULL DEFAULT 'ACTIVE',
   last_login_at TIMESTAMP NULL,
   created_by    BIGINT NULL,           -- self-reference: which user created this account
@@ -434,9 +435,6 @@ CREATE INDEX idx_salpay_employee ON salary_payments (employee_id);
 CREATE INDEX idx_salpay_status ON salary_payments (status);
 CREATE INDEX idx_salpay_treasury_token ON salary_payments (treasury_token_number);
 
-CREATE TRIGGER trg_employees_updated_at BEFORE UPDATE ON employees FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_salary_payments_updated_at BEFORE UPDATE ON salary_payments FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
 -- ============================================================================
 -- SECTION 6: CERTIFICATES & REPORT GENERATION LOG
 -- ============================================================================
@@ -479,6 +477,26 @@ CREATE TABLE certificate_logs (
 );
 CREATE INDEX idx_certlog_reference ON certificate_logs (reference_table, reference_id);
 CREATE INDEX idx_certlog_department ON certificate_logs (department_id);
+
+CREATE TABLE smtp_settings (
+  id                   BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  department_id        BIGINT NOT NULL,
+  smtp_host            VARCHAR(255) NOT NULL,
+  smtp_port            INTEGER NOT NULL DEFAULT 587,
+  smtp_username        VARCHAR(255) NOT NULL,
+  smtp_password_cipher TEXT NOT NULL,       -- AES-256-GCM ciphertext, base64 (iv:authTag:ciphertext), see src/lib/crypto.ts
+  smtp_from_email      VARCHAR(150) NOT NULL,
+  smtp_from_name       VARCHAR(150) NULL,
+  use_tls              BOOLEAN NOT NULL DEFAULT TRUE,
+  updated_by           BIGINT NULL,
+  created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_smtp_department FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
+  CONSTRAINT fk_smtp_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT uq_smtp_department UNIQUE (department_id)
+);
+
+CREATE TRIGGER trg_smtp_settings_updated_at BEFORE UPDATE ON smtp_settings FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ============================================================================
 -- SECTION 7: AUDIT TRAIL & SECURITY LOGS
@@ -547,6 +565,8 @@ CREATE TRIGGER trg_contractors_updated_at BEFORE UPDATE ON contractors FOR EACH 
 CREATE TRIGGER trg_schemes_updated_at BEFORE UPDATE ON schemes FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_works_updated_at BEFORE UPDATE ON works FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_payments_updated_at BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_employees_updated_at BEFORE UPDATE ON employees FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_salary_payments_updated_at BEFORE UPDATE ON salary_payments FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE FUNCTION trg_works_before_insert_budget_check() RETURNS TRIGGER AS $$
 DECLARE
@@ -698,7 +718,7 @@ INSERT INTO modules (module_code, module_name, description) VALUES
 ('PAYMENT_ENTRY', 'Payment Entry', 'Three-part payment entry workflow'),
 ('PAYMENT_CERTIFICATE', 'Payment Certificates', 'Generate RA bill / payment certificates'),
 ('WORK_EXPERIENCE_CERTIFICATE', 'Work Experience Certificates', 'Generate contractor completion certificates'),
-('TAX_LEDGER_REPORT', 'Tax & Audit Reports', 'Consolidated tax/audit summary reports'),
+('TAX_LEDGER_REPORT', 'Reports', 'Consolidated tax/audit summary reports'),
 ('AUDIT_LOGS', 'Audit Logs', 'View system-wide change history'),
 ('USER_MANAGEMENT', 'User Management', 'Manage staff accounts and permissions'),
 ('DEPARTMENT_SETTINGS', 'Department Settings', 'Department profile and DDO configuration'),

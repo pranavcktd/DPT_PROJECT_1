@@ -70,7 +70,7 @@ export function SubscriptionDialog({
       <DialogTrigger className={buttonVariants({ variant: "outline", size: "sm" })} render={<button type="button" />}>
         Subscription
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Subscription - {departmentName}</DialogTitle>
           <DialogDescription>

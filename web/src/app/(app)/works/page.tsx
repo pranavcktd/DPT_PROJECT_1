@@ -1,8 +1,10 @@
+import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { MODULE_THEME } from "@/lib/module-theme";
 import { db } from "@/lib/db";
 import { getModulePermissions } from "@/lib/session";
 import { WorkFormDialog } from "./work-form-dialog";
+import { WorksImportDialog } from "./import-dialog";
 import { WorksTable } from "./works-table";
 
 export default async function WorksPage() {
@@ -50,7 +52,13 @@ export default async function WorksPage() {
         description="Individual works raised against a scheme's budget."
         action={
           can_create ? (
-            <WorkFormDialog schemes={schemeOptions} triggerLabel="New Work Order" triggerClassName={theme.button} />
+            <div className="flex flex-wrap items-center gap-2">
+              <a href="/api/works/export" className={buttonVariants({ variant: "outline" })}>
+                Export
+              </a>
+              <WorksImportDialog />
+              <WorkFormDialog schemes={schemeOptions} triggerLabel="New Work Order" triggerClassName={theme.button} />
+            </div>
           ) : null
         }
       />
