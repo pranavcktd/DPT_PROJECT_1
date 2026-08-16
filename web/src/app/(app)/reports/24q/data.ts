@@ -27,6 +27,7 @@ export async function get24qReportRows(
       gross_salary: true,
       it_deduction_amount: true,
       treasury_payment_date: true,
+      payment_date_is_estimated: true,
     },
   });
 }

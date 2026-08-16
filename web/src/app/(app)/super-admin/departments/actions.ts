@@ -6,8 +6,9 @@ import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/session";
 import { writeAuditLog } from "@/lib/audit";
-import { onboardDepartmentSchema, subscriptionSchema } from "./schema";
+import { onboardDepartmentSchema, subscriptionSchema, type OnboardDepartmentValues } from "./schema";
 import { DEFAULT_PASSWORD } from "@/lib/auth-constants";
+import { uniqueConstraintFields } from "@/lib/prisma-errors";
 
 export type ActionState = { error: string | null; success?: boolean; tenantCode?: string; email?: string };
 
@@ -19,15 +20,17 @@ function toNullableNumber(value: number | "" | undefined): number | null {
   return value === undefined || value === "" ? null : value;
 }
 
-function friendlyErrorFor(error: unknown): string {
+function friendlyErrorFor(error: unknown, values: OnboardDepartmentValues): string {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-    const target = (error.meta?.target as string[] | undefined)?.join(", ");
-    if (target?.includes("tenant_code")) return "A department with this tenant code already exists.";
-    if (target?.includes("official_email") || target?.includes("email")) {
-      return "A department or user with this email already exists.";
+    const fields = uniqueConstraintFields(error);
+    if (fields.includes("tenant_code")) {
+      return `A department with tenant code "${values.tenant_code}" already exists.`;
     }
-    if (target?.includes("gstin")) return "A department with this GSTIN already exists.";
-    if (target?.includes("pan")) return "A department with this PAN already exists.";
+    if (fields.includes("official_email") || fields.includes("email")) {
+      return `A department or user with the email "${values.official_email}" already exists.`;
+    }
+    if (fields.includes("gstin")) return `A department with GSTIN "${values.gstin}" already exists.`;
+    if (fields.includes("pan")) return `A department with PAN "${values.pan}" already exists.`;
     return "A department with this value already exists.";
   }
   throw error;
@@ -117,7 +120,7 @@ export async function onboardDepartment(_prev: ActionState, formData: FormData):
       newData: result,
     });
   } catch (error) {
-    return { error: friendlyErrorFor(error) };
+    return { error: friendlyErrorFor(error, values) };
   }
 
   revalidatePath("/super-admin/departments");

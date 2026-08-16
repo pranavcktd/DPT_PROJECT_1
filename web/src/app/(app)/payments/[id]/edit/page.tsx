@@ -92,8 +92,10 @@ export default async function EditPaymentPage({ params }: { params: Promise<{ id
         other_deduction_type: payment.other_deduction_type,
         other_deduction_value: Number(payment.other_deduction_value),
         other_deduction_remarks: payment.other_deduction_remarks ?? "",
+        pay_mode: payment.pay_mode,
         treasury_token_number: payment.treasury_token_number ?? "",
-        treasury_payment_date: payment.treasury_payment_date?.toISOString().slice(0, 10) ?? "",
+        token_generated_date: payment.token_generated_date?.toISOString().slice(0, 10) ?? "",
+        actual_payment_date: payment.actual_payment_date?.toISOString().slice(0, 10) ?? "",
         remarks: payment.remarks ?? "",
       }}
     />

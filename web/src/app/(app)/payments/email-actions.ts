@@ -61,6 +61,7 @@ export async function emailPaymentCertificate(_prev: SendEmailActionState, formD
         cumulative_gross_amount_till_date: Number(payment.cumulative_gross_amount_till_date),
         treasury_token_number: payment.treasury_token_number,
         treasury_payment_date: payment.treasury_payment_date?.toISOString() ?? null,
+        payment_date_is_estimated: !!payment.payment_date_is_estimated,
         status: payment.status,
       },
     }),

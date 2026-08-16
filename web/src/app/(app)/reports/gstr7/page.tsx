@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { PrintButton } from "@/components/print-button";
 import { ReportFilterBar } from "@/components/report-filter-bar";
 import { SendEmailDialog } from "@/components/send-email-dialog";
+import { EstimatedDateBadge } from "@/components/estimated-date-badge";
 import { requireModulePermission } from "@/lib/session";
 import { formatINR } from "@/lib/utils";
 import { MONTHS, formatDateForReport } from "@/lib/reports";
@@ -113,7 +114,10 @@ export default async function Gstr7ReportPage(props: PageProps<"/reports/gstr7">
                       <TableCell>{r.contractor_gstin_snapshot ?? "-"}</TableCell>
                       <TableCell>{r.invoice_number}</TableCell>
                       <TableCell>{formatDateForReport(r.invoice_date)}</TableCell>
-                      <TableCell>{formatDateForReport(r.treasury_payment_date)}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {formatDateForReport(r.treasury_payment_date)}
+                        <EstimatedDateBadge estimated={!!r.payment_date_is_estimated} />
+                      </TableCell>
                       <TableCell className="text-right">{formatINR(Number(r.total_bill_value ?? 0))}</TableCell>
                       <TableCell>{r.contractors.phone ?? "-"}</TableCell>
                       <TableCell className="text-right">{formatINR(Number(r.base_cost))}</TableCell>

@@ -38,6 +38,7 @@ export type PaymentCertificateData = {
     cumulative_gross_amount_till_date: number;
     treasury_token_number: string | null;
     treasury_payment_date: string | null;
+    payment_date_is_estimated: boolean;
     status: string;
   };
 };
@@ -216,7 +217,10 @@ export function PaymentCertificateDocument({ department, ddo, payment }: Payment
               </View>
               <View style={styles.labelValue}>
                 <Text style={styles.label}>Treasury Payment Date</Text>
-                <Text style={styles.value}>{formatDate(payment.treasury_payment_date)}</Text>
+                <Text style={styles.value}>
+                  {formatDate(payment.treasury_payment_date)}
+                  {payment.payment_date_is_estimated ? " (Estimated - pending treasury reconciliation)" : ""}
+                </Text>
               </View>
             </View>
           </View>

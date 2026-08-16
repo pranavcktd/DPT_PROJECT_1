@@ -2,7 +2,23 @@ import { requireModulePermission, ForbiddenError, UnauthenticatedError } from "@
 import { db } from "@/lib/db";
 import { formatDateForReport, toCsv } from "@/lib/reports";
 
-const COLUMNS = ["employee_pan", "employee_name", "payment_type", "other_type_label", "gross_salary", "it_deduction_amount", "net_payable_amount", "treasury_token_number", "treasury_payment_date", "status", "remarks"];
+const COLUMNS = [
+  "employee_pan",
+  "employee_name",
+  "payment_type",
+  "other_type_label",
+  "gross_salary",
+  "it_deduction_amount",
+  "net_payable_amount",
+  "pay_mode",
+  "treasury_token_number",
+  "token_generated_date",
+  "actual_payment_date",
+  "treasury_payment_date",
+  "payment_date_is_estimated",
+  "status",
+  "remarks",
+];
 
 export async function GET() {
   let user;
@@ -29,8 +45,12 @@ export async function GET() {
       Number(p.gross_salary),
       Number(p.it_deduction_amount),
       Number(p.net_payable_amount ?? 0),
+      p.pay_mode,
       p.treasury_token_number,
+      formatDateForReport(p.token_generated_date),
+      formatDateForReport(p.actual_payment_date),
       formatDateForReport(p.treasury_payment_date),
+      p.payment_date_is_estimated ? "YES" : "NO",
       p.status,
       p.remarks,
     ]),

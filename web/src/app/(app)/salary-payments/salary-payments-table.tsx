@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchInput } from "@/components/search-input";
+import { EstimatedDateBadge } from "@/components/estimated-date-badge";
 import { formatEnumLabel, formatINR } from "@/lib/utils";
 import { SalaryPaymentFormDialog } from "./salary-payment-form-dialog";
 import { CancelSalaryPaymentDialog } from "./cancel-salary-payment-dialog";
@@ -24,8 +25,12 @@ export type SalaryPaymentRow = {
   gross_salary: number;
   it_deduction_amount: number;
   net_payable_amount: number;
+  pay_mode: "TREASURY" | "OTHER_THAN_TREASURY";
   treasury_token_number: string;
+  token_generated_date: string;
+  actual_payment_date: string;
   treasury_payment_date: string;
+  payment_date_is_estimated: boolean;
   remarks: string;
   status: "SAVED" | "APPROVED" | "CANCELLED";
 };
@@ -94,7 +99,10 @@ export function SalaryPaymentsTable({
                       <TableCell>
                         <Badge variant={STATUS_VARIANT[p.status]}>{p.status}</Badge>
                       </TableCell>
-                      <TableCell>{p.treasury_payment_date || "-"}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {p.treasury_payment_date || "-"}
+                        <EstimatedDateBadge estimated={p.payment_date_is_estimated} />
+                      </TableCell>
                       {showActions ? (
                         <TableCell className="text-right space-x-2 whitespace-nowrap">
                           {can_edit && canModify ? (
@@ -107,8 +115,10 @@ export function SalaryPaymentsTable({
                                 other_type_label: p.other_type_label,
                                 gross_salary: p.gross_salary,
                                 it_deduction_amount: p.it_deduction_amount,
+                                pay_mode: p.pay_mode,
                                 treasury_token_number: p.treasury_token_number,
-                                treasury_payment_date: p.treasury_payment_date,
+                                token_generated_date: p.token_generated_date,
+                                actual_payment_date: p.actual_payment_date,
                                 remarks: p.remarks,
                               }}
                               triggerLabel="Edit"

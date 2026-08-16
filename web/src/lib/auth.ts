@@ -79,6 +79,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           roleCode: user.roles.role_code,
           departmentId: user.department_id ? user.department_id.toString() : null,
           mustChangePassword: user.must_change_password,
+          previousLoginAt: user.last_login_at ? user.last_login_at.toISOString() : null,
         };
       },
     }),
@@ -90,6 +91,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.roleCode = user.roleCode;
         token.departmentId = user.departmentId;
         token.mustChangePassword = user.mustChangePassword;
+        token.previousLoginAt = user.previousLoginAt;
       }
       return token;
     },
@@ -98,6 +100,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.roleCode = token.roleCode;
       session.user.departmentId = token.departmentId;
       session.user.mustChangePassword = token.mustChangePassword;
+      session.user.previousLoginAt = token.previousLoginAt;
       return session;
     },
   },

@@ -27,6 +27,7 @@ export async function getTdsReportRows(
       base_cost: true,
       it_tds_amount: true,
       treasury_payment_date: true,
+      payment_date_is_estimated: true,
     },
   });
 }

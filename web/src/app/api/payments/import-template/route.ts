@@ -20,8 +20,10 @@ const COLUMNS = [
   "other_deduction_type",
   "other_deduction_value",
   "other_deduction_remarks",
+  "pay_mode",
   "treasury_token_number",
-  "treasury_payment_date",
+  "token_generated_date",
+  "actual_payment_date",
   "remarks",
 ];
 
@@ -40,7 +42,7 @@ export async function GET() {
       "INV-2026-001", "2026-02-01", "400000",
       "18", "2", "2", "1",
       "NOT_APPLICABLE", "0", "NOT_APPLICABLE", "0", "NOT_APPLICABLE", "0", "",
-      "TKN-2026-001", "2026-02-05", "",
+      "TREASURY", "TKN-2026-001", "2026-02-05", "", "",
     ],
   ]);
 

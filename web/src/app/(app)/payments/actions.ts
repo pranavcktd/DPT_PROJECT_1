@@ -20,10 +20,20 @@ function toNullable(value?: string): string | null {
  * PrismaClientKnownRequestError with the original trigger message preserved
  * inline in error.message - match on known phrasing, rethrow anything else.
  */
+const CHECK_CONSTRAINT_MESSAGES: Record<string, string> = {
+  chk_payment_invoice_after_agreement: "Invoice date cannot be before the agreement date.",
+  chk_payment_token_after_invoice: "Token generated date cannot be before the invoice date.",
+  chk_payment_actual_after_invoice: "Payment date cannot be before the invoice date.",
+  chk_payment_actual_after_token: "The actual payment date cannot be before the token generated date.",
+};
+
 function friendlyErrorFor(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
   if (message.includes("exceeds remaining work order budget")) {
     return "Base cost exceeds the remaining budget for this work order.";
+  }
+  for (const [constraint, friendly] of Object.entries(CHECK_CONSTRAINT_MESSAGES)) {
+    if (message.includes(`"${constraint}"`)) return friendly;
   }
   throw error;
 }
@@ -83,8 +93,17 @@ function buildDeductionFields(values: PaymentFormValues, gstTdsType: ReturnType<
     total_deductions: calc.totalDeductions,
     net_payable_amount: calc.netPayableAmount,
 
-    treasury_token_number: toNullable(values.treasury_token_number),
-    treasury_payment_date: values.treasury_payment_date ? new Date(values.treasury_payment_date) : null,
+    pay_mode: values.pay_mode,
+    treasury_token_number: values.pay_mode === "TREASURY" ? toNullable(values.treasury_token_number) : null,
+    token_generated_date:
+      values.pay_mode === "TREASURY" && values.token_generated_date ? new Date(values.token_generated_date) : null,
+    // Only touched for Other-Than-Treasury, where it's entered directly here.
+    // For Treasury mode it's deliberately omitted (not set to null) so
+    // re-saving an already-reconciled payment via this form never wipes out
+    // the actual date entered separately via Treasury Reconciliation.
+    ...(values.pay_mode === "OTHER_THAN_TREASURY"
+      ? { actual_payment_date: values.actual_payment_date ? new Date(values.actual_payment_date) : null }
+      : {}),
     remarks: toNullable(values.remarks),
   };
 }

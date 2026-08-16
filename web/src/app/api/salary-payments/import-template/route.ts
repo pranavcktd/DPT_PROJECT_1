@@ -1,7 +1,18 @@
 import { requireModulePermission, ForbiddenError, UnauthenticatedError } from "@/lib/session";
 import { toCsv } from "@/lib/reports";
 
-const COLUMNS = ["employee_pan", "payment_type", "other_type_label", "gross_salary", "it_deduction_amount", "treasury_token_number", "treasury_payment_date", "remarks"];
+const COLUMNS = [
+  "employee_pan",
+  "payment_type",
+  "other_type_label",
+  "gross_salary",
+  "it_deduction_amount",
+  "pay_mode",
+  "treasury_token_number",
+  "token_generated_date",
+  "actual_payment_date",
+  "remarks",
+];
 
 export async function GET() {
   try {
@@ -13,8 +24,8 @@ export async function GET() {
   }
 
   const csv = toCsv(COLUMNS, [
-    ["ABCPT1234E", "SALARY", "", "50000", "5000", "TKN-001", "2026-08-10", ""],
-    ["ABCPT1234E", "OTHER", "Festival Bonus", "10000", "0", "TKN-002", "2026-08-10", ""],
+    ["ABCPT1234E", "SALARY", "", "50000", "5000", "TREASURY", "TKN-001", "2026-08-10", "", ""],
+    ["ABCPT1234E", "OTHER", "Festival Bonus", "10000", "0", "TREASURY", "TKN-002", "2026-08-10", "", ""],
   ]);
 
   return new Response(csv, {

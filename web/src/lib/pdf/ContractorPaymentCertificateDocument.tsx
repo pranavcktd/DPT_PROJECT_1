@@ -10,6 +10,7 @@ export type ContractorCertificateRow = {
   total_deductions: number;
   net_payable_amount: number;
   treasury_payment_date: string | null;
+  payment_date_is_estimated: boolean;
 };
 
 export type ContractorPaymentCertificateData = {
@@ -103,7 +104,10 @@ export function ContractorPaymentCertificateDocument({
                   <Text style={styles.tableCellRight}>{formatINR(r.base_cost)}</Text>
                   <Text style={styles.tableCellRight}>{formatINR(r.total_deductions)}</Text>
                   <Text style={styles.tableCellRight}>{formatINR(r.net_payable_amount)}</Text>
-                  <Text style={styles.tableCell}>{formatDate(r.treasury_payment_date)}</Text>
+                  <Text style={styles.tableCell}>
+                    {formatDate(r.treasury_payment_date)}
+                    {r.payment_date_is_estimated ? " (Est.)" : ""}
+                  </Text>
                 </View>
               ))
             )}

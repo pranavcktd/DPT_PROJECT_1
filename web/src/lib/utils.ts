@@ -22,3 +22,15 @@ export function formatEnumLabel(value: string) {
 export function formatINR(value: number) {
   return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }
+
+export function formatDateTime(value: Date | string | null): string {
+  if (!value) return "-";
+  const date = typeof value === "string" ? new Date(value) : value;
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}

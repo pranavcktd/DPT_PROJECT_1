@@ -6,6 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { PrintButton } from "@/components/print-button";
 import { ReportFilterBar } from "@/components/report-filter-bar";
 import { SendEmailDialog } from "@/components/send-email-dialog";
+import { EstimatedDateBadge } from "@/components/estimated-date-badge";
 import { requireModulePermission } from "@/lib/session";
 import { formatDateForReport } from "@/lib/reports";
 import { formatEnumLabel, formatINR } from "@/lib/utils";
@@ -98,7 +99,10 @@ export default async function SalaryPaymentsReportPage(props: PageProps<"/report
                     <TableCell className="text-right">{formatINR(Number(p.it_deduction_amount))}</TableCell>
                     <TableCell className="text-right">{formatINR(Number(p.net_payable_amount ?? 0))}</TableCell>
                     <TableCell><Badge variant={STATUS_VARIANT[p.status]}>{p.status}</Badge></TableCell>
-                    <TableCell>{formatDateForReport(p.treasury_payment_date)}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {formatDateForReport(p.treasury_payment_date)}
+                      <EstimatedDateBadge estimated={!!p.payment_date_is_estimated} />
+                    </TableCell>
                   </TableRow>
                 ))
               )}

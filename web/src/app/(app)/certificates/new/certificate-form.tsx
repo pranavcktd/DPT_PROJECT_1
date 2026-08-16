@@ -17,7 +17,7 @@ import {
   type WorkExperienceCertificateInput,
   type WorkExperienceCertificateValues,
 } from "../schema";
-import { issueWorkExperienceCertificate } from "../actions";
+import { issueWorkExperienceCertificate, updateWorkExperienceCertificate } from "../actions";
 
 type WorkOption = {
   id: string;
@@ -37,13 +37,24 @@ function numericProps(field: { value: unknown }, onChange: (v: string) => void) 
   };
 }
 
-export function CertificateForm({ works, contractors }: { works: WorkOption[]; contractors: ContractorOption[] }) {
+export type CertificateInitialValues = WorkExperienceCertificateValues & { id: string };
+
+export function CertificateForm({
+  works,
+  contractors,
+  certificate,
+}: {
+  works: WorkOption[];
+  contractors: ContractorOption[];
+  certificate?: CertificateInitialValues;
+}) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const isEdit = !!certificate;
 
   const form = useForm<WorkExperienceCertificateInput, unknown, WorkExperienceCertificateValues>({
     resolver: zodResolver(workExperienceCertificateSchema),
-    defaultValues: {
+    defaultValues: certificate ?? {
       work_id: "",
       contractor_id: "",
       certificate_number: `WEC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`,
@@ -61,7 +72,9 @@ export function CertificateForm({ works, contractors }: { works: WorkOption[]; c
   const selectedWork = works.find((w) => w.id === workId);
 
   useEffect(() => {
-    if (!selectedWork) return;
+    // Edit mode starts with the certificate's own saved values - selecting a
+    // different work order there shouldn't silently overwrite them.
+    if (isEdit || !selectedWork) return;
     form.setValue("sanctioned_value", selectedWork.sanctioned_cost);
     form.setValue("executed_value", selectedWork.executedValueSuggestion);
     form.setValue("stated_completion_date", selectedWork.expected_completion_date);
@@ -70,14 +83,16 @@ export function CertificateForm({ works, contractors }: { works: WorkOption[]; c
       form.setValue("contractor_id", selectedWork.suggestedContractorId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedWork?.id]);
+  }, [selectedWork?.id, isEdit]);
 
   async function onSubmit(values: WorkExperienceCertificateValues) {
     setServerError(null);
     const formData = new FormData();
     Object.entries(values).forEach(([key, value]) => formData.append(key, String(value ?? "")));
 
-    const result = await issueWorkExperienceCertificate({ error: null }, formData);
+    const result = isEdit
+      ? await updateWorkExperienceCertificate(certificate.id, { error: null }, formData)
+      : await issueWorkExperienceCertificate({ error: null }, formData);
     if (result.error) {
       setServerError(result.error);
       return;
@@ -88,10 +103,11 @@ export function CertificateForm({ works, contractors }: { works: WorkOption[]; c
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Issue Work Experience Certificate</CardTitle>
+        <CardTitle>{isEdit ? "Edit Work Experience Certificate" : "Issue Work Experience Certificate"}</CardTitle>
         <CardDescription>
-          Selecting a work order auto-fills the contractor and executed value from its payment history - all fields
-          remain editable.
+          {isEdit
+            ? "Update the certificate's details below."
+            : "Selecting a work order auto-fills the contractor and executed value from its payment history - all fields remain editable."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -295,7 +311,7 @@ export function CertificateForm({ works, contractors }: { works: WorkOption[]; c
                 disabled={form.formState.isSubmitting}
                 className="bg-rose-600 text-white hover:bg-rose-700"
               >
-                {form.formState.isSubmitting ? "Issuing..." : "Issue Certificate"}
+                {form.formState.isSubmitting ? "Saving..." : isEdit ? "Save Changes" : "Issue Certificate"}
               </Button>
             </div>
           </form>

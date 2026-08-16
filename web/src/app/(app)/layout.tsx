@@ -1,16 +1,14 @@
 import Image from "next/image";
-import Link from "next/link";
-import { KeyRound, Menu } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { IdleLogoutGuard } from "@/components/idle-logout-guard";
-import { SignOutDialog } from "@/components/sign-out-dialog";
 import { getModulePermissions, requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
-import { MODULE_REGISTRY } from "@/lib/module-registry";
-import { SidebarNav, type NavItem, type NavLink } from "./sidebar-nav";
+import { MODULE_REGISTRY_BY_KEY, NAV_TREE, type NavTreeNode } from "@/lib/module-registry";
+import { Menu } from "lucide-react";
+import { SidebarNav, type NavItem } from "./sidebar-nav";
+import { UserMenu } from "./user-menu";
 
 const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
@@ -25,6 +23,8 @@ const DASHBOARD_NAV_ITEM: NavItem = { href: "/dashboard", label: "Dashboard", ic
 const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/super-admin/departments", label: "Departments", icon: "superAdmin" },
+  { href: "/super-admin/users", label: "Users", icon: "staff" },
+  { href: "/super-admin/audit-logs", label: "Audit Logs", icon: "auditLogs" },
 ];
 
 function initials(name: string | null | undefined) {
@@ -35,6 +35,33 @@ function initials(name: string | null | undefined) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
+}
+
+/**
+ * Resolves the module/sub-module nav tree against this user's actual
+ * per-module permissions - a "link" node disappears if they can't view that
+ * module, and a "group" node disappears entirely if none of its children
+ * (recursively) are visible, rather than rendering an empty group.
+ */
+async function resolveNavTree(nodes: NavTreeNode[]): Promise<NavItem[]> {
+  const resolved = await Promise.all(
+    nodes.map(async (node): Promise<NavItem | null> => {
+      if (node.type === "link") {
+        const entry = MODULE_REGISTRY_BY_KEY[node.key];
+        if (!entry) return null;
+        const { can_view } = await getModulePermissions(entry.moduleCode);
+        return can_view ? { href: entry.href, label: entry.navLabel, icon: entry.key } : null;
+      }
+      if (node.type === "link-custom") {
+        const permissions = await Promise.all(node.requiresAnyView.map((code) => getModulePermissions(code)));
+        const visible = permissions.some((p) => p.can_view);
+        return visible ? { href: node.href, label: node.label, icon: node.icon } : null;
+      }
+      const children = await resolveNavTree(node.children);
+      return children.length > 0 ? { label: node.label, icon: node.icon, children } : null;
+    }),
+  );
+  return resolved.filter((item): item is NavItem => item !== null);
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -50,17 +77,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const navItems: NavItem[] =
     user.roleCode === "SUPER_ADMIN"
       ? SUPER_ADMIN_NAV_ITEMS
-      : [
-          DASHBOARD_NAV_ITEM,
-          ...(
-            await Promise.all(
-              MODULE_REGISTRY.map(async (entry): Promise<NavLink | null> => {
-                const { can_view } = await getModulePermissions(entry.moduleCode);
-                return can_view ? { href: entry.href, label: entry.navLabel, icon: entry.key } : null;
-              })
-            )
-          ).filter((item): item is NavLink => item !== null),
-        ];
+      : [DASHBOARD_NAV_ITEM, ...(await resolveNavTree(NAV_TREE))];
 
   const brand = (
     <div className="flex items-center gap-2.5 px-1">
@@ -78,34 +95,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       )}
       <div className="min-w-0">
-        <p className="truncate text-sm font-semibold leading-tight">
+        <p className="font-heading truncate text-sm font-semibold leading-tight">
           {department ? department.department_name : "Software Company"}
         </p>
         <p className="text-xs text-muted-foreground">{department ? department.tenant_code : "Super Admin"}</p>
-      </div>
-    </div>
-  );
-
-  const userFooter = (
-    <div className="space-y-1.5 rounded-lg border bg-muted/30 p-2.5">
-      <div className="flex items-center gap-2.5">
-        <Avatar size="sm">
-          <AvatarFallback>{initials(user.name)}</AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium leading-tight">{user.name}</p>
-          <p className="truncate text-xs text-muted-foreground">{ROLE_LABELS[user.roleCode] ?? user.roleCode}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <Link
-          href="/change-password"
-          className={buttonVariants({ variant: "ghost", size: "sm" }) + " flex-1 justify-start gap-1.5"}
-        >
-          <KeyRound className="size-3.5" />
-          Change Password
-        </Link>
-        <SignOutDialog />
       </div>
     </div>
   );
@@ -115,28 +108,39 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <IdleLogoutGuard />
       <aside className="no-print hidden w-64 shrink-0 flex-col gap-4 border-r bg-background p-4 md:flex">
         {brand}
-        <SidebarNav items={navItems} />
-        <div className="mt-auto">{userFooter}</div>
+        <div className="flex-1 overflow-y-auto">
+          <SidebarNav items={navItems} />
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="no-print flex items-center justify-between gap-3 border-b bg-background px-4 py-3 md:hidden">
+        <header className="no-print flex items-center gap-3 border-b bg-background px-4 py-3">
           <Sheet>
             {/* Plain <button> + buttonVariants (not <Button>) - nesting a component that
                 sets its own data-slot inside an eagerly SSR-rendered trigger's render prop
                 causes a server/client hydration mismatch on the data-slot attribute. */}
-            <SheetTrigger className={buttonVariants({ variant: "ghost", size: "icon" })} render={<button type="button" />}>
+            <SheetTrigger
+              className={buttonVariants({ variant: "ghost", size: "icon" }) + " md:hidden"}
+              render={<button type="button" />}
+            >
               <Menu />
               <span className="sr-only">Open menu</span>
             </SheetTrigger>
             <SheetContent side="left" className="w-72 gap-4 p-4">
               <SheetTitle className="sr-only">Navigation</SheetTitle>
               {brand}
-              <SidebarNav items={navItems} />
-              <div className="mt-auto">{userFooter}</div>
+              <div className="flex-1 overflow-y-auto">
+                <SidebarNav items={navItems} />
+              </div>
             </SheetContent>
           </Sheet>
-          <Badge variant="secondary">{ROLE_LABELS[user.roleCode] ?? user.roleCode}</Badge>
+
+          <div className="ml-auto flex items-center gap-3">
+            <Badge variant="secondary" className="hidden sm:inline-flex">
+              {ROLE_LABELS[user.roleCode] ?? user.roleCode}
+            </Badge>
+            <UserMenu name={user.name ?? ""} roleLabel={ROLE_LABELS[user.roleCode] ?? user.roleCode} />
+          </div>
         </header>
 
         <main className="flex-1 bg-muted/20 px-4 py-6 md:px-8 md:py-8">

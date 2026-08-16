@@ -7,7 +7,8 @@ import { db } from "@/lib/db";
 import { requireModulePermission } from "@/lib/session";
 import { writeAuditLog } from "@/lib/audit";
 import { parseCsvRows, summarizeImport, type ImportRowResult, type ImportSummary } from "@/lib/csv-import";
-import { contractorFormSchema } from "./schema";
+import { uniqueConstraintFields } from "@/lib/prisma-errors";
+import { contractorFormSchema, type ContractorFormValues } from "./schema";
 
 export type ImportActionState = { error: string | null; summary?: ImportSummary };
 
@@ -21,10 +22,12 @@ function toNullable(value?: string): string | null {
   return value && value.length > 0 ? value : null;
 }
 
-function friendlyRowError(error: unknown): string {
+function friendlyRowError(error: unknown, values: Pick<ContractorFormValues, "pan_number" | "vendor_code">): string {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-    const target = (error.meta?.target as string[] | undefined)?.join(", ");
-    return `Duplicate ${target?.includes("pan") ? "PAN" : target?.includes("vendor_code") ? "vendor code" : "value"} - already exists.`;
+    const fields = uniqueConstraintFields(error);
+    if (fields.includes("pan_number")) return `Duplicate PAN "${values.pan_number}" - already exists.`;
+    if (fields.includes("vendor_code")) return `Duplicate vendor code "${values.vendor_code}" - already exists.`;
+    return "Duplicate value - already exists.";
   }
   return error instanceof Error ? error.message : "Unknown error";
 }
@@ -91,7 +94,7 @@ export async function importContractors(_prev: ImportActionState, formData: Form
       });
       results.push({ row: rowNumber, success: true });
     } catch (error) {
-      results.push({ row: rowNumber, error: friendlyRowError(error) });
+      results.push({ row: rowNumber, error: friendlyRowError(error, values) });
     }
   }
 

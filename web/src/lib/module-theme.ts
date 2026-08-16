@@ -12,6 +12,10 @@ import {
   UserRound,
   Wallet,
   UserCog,
+  History,
+  IdCard,
+  Landmark,
+  FileCheck2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,7 +32,11 @@ export type ModuleKey =
   | "reports"
   | "employees"
   | "salaryPayments"
-  | "staff";
+  | "staff"
+  | "auditLogs"
+  | "partyMaster"
+  | "otherPayments"
+  | "reconciliation";
 
 export const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -44,6 +52,10 @@ export const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   employees: UserRound,
   salaryPayments: Wallet,
   staff: UserCog,
+  auditLogs: History,
+  partyMaster: IdCard,
+  otherPayments: Landmark,
+  reconciliation: FileCheck2,
 };
 
 /**
@@ -187,5 +199,41 @@ export const MODULE_THEME: Record<
     accentBar: "bg-pink-500",
     accentBox: "bg-pink-600",
     text: "text-pink-700",
+  },
+  auditLogs: {
+    badge: "bg-stone-200 text-stone-700",
+    navActive: "bg-stone-600 text-white",
+    button: "bg-stone-600 text-white hover:bg-stone-700",
+    pill: "bg-stone-100 text-stone-700 border-stone-300",
+    accentBar: "bg-stone-500",
+    accentBox: "bg-stone-600",
+    text: "text-stone-700",
+  },
+  partyMaster: {
+    badge: "bg-sky-100 text-sky-700",
+    navActive: "bg-sky-600 text-white",
+    button: "bg-sky-600 text-white hover:bg-sky-700",
+    pill: "bg-sky-50 text-sky-700 border-sky-200",
+    accentBar: "bg-sky-500",
+    accentBox: "bg-sky-600",
+    text: "text-sky-700",
+  },
+  otherPayments: {
+    badge: "bg-purple-100 text-purple-700",
+    navActive: "bg-purple-600 text-white",
+    button: "bg-purple-600 text-white hover:bg-purple-700",
+    pill: "bg-purple-50 text-purple-700 border-purple-200",
+    accentBar: "bg-purple-500",
+    accentBox: "bg-purple-600",
+    text: "text-purple-700",
+  },
+  reconciliation: {
+    badge: "bg-yellow-100 text-yellow-700",
+    navActive: "bg-yellow-600 text-white",
+    button: "bg-yellow-600 text-white hover:bg-yellow-700",
+    pill: "bg-yellow-50 text-yellow-700 border-yellow-200",
+    accentBar: "bg-yellow-500",
+    accentBox: "bg-yellow-600",
+    text: "text-yellow-700",
   },
 };

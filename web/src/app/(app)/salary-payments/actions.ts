@@ -8,6 +8,18 @@ import { salaryPaymentFormSchema, type SalaryPaymentFormValues } from "./schema"
 
 export type ActionState = { error: string | null; success?: boolean; paymentId?: string };
 
+const CHECK_CONSTRAINT_MESSAGES: Record<string, string> = {
+  chk_salpay_actual_after_token: "The actual payment date cannot be before the token generated date.",
+};
+
+function friendlyErrorFor(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  for (const [constraint, friendly] of Object.entries(CHECK_CONSTRAINT_MESSAGES)) {
+    if (message.includes(`"${constraint}"`)) return friendly;
+  }
+  throw error;
+}
+
 function toNullable(value?: string): string | null {
   return value && value.length > 0 ? value : null;
 }
@@ -18,8 +30,15 @@ function buildData(values: SalaryPaymentFormValues) {
     other_type_label: values.payment_type === "OTHER" ? toNullable(values.other_type_label) : null,
     gross_salary: values.gross_salary,
     it_deduction_amount: values.it_deduction_amount,
-    treasury_token_number: toNullable(values.treasury_token_number),
-    treasury_payment_date: values.treasury_payment_date ? new Date(values.treasury_payment_date) : null,
+    pay_mode: values.pay_mode,
+    treasury_token_number: values.pay_mode === "TREASURY" ? toNullable(values.treasury_token_number) : null,
+    token_generated_date:
+      values.pay_mode === "TREASURY" && values.token_generated_date ? new Date(values.token_generated_date) : null,
+    // Omitted (not nulled) for Treasury mode so re-saving an already-reconciled
+    // payment never wipes out the actual date entered via Treasury Reconciliation.
+    ...(values.pay_mode === "OTHER_THAN_TREASURY"
+      ? { actual_payment_date: values.actual_payment_date ? new Date(values.actual_payment_date) : null }
+      : {}),
     remarks: toNullable(values.remarks),
   };
 }
@@ -36,29 +55,33 @@ export async function createSalaryPayment(_prev: ActionState, formData: FormData
   const employee = await db.employees.findFirst({ where: { id: BigInt(values.employee_id), department_id: departmentId } });
   if (!employee) return { error: "Employee not found." };
 
-  const payment = await db.salary_payments.create({
-    data: {
-      department_id: departmentId,
-      employee_id: employee.id,
-      employee_name_snapshot: employee.employee_name,
-      employee_pan_snapshot: employee.pan_number,
-      ...buildData(values),
-      status: "SAVED",
-      created_by: BigInt(user.id),
-    },
-  });
+  try {
+    const payment = await db.salary_payments.create({
+      data: {
+        department_id: departmentId,
+        employee_id: employee.id,
+        employee_name_snapshot: employee.employee_name,
+        employee_pan_snapshot: employee.pan_number,
+        ...buildData(values),
+        status: "SAVED",
+        created_by: BigInt(user.id),
+      },
+    });
 
-  await writeAuditLog({
-    departmentId,
-    performedBy: BigInt(user.id),
-    tableName: "salary_payments",
-    recordId: payment.id,
-    action: "CREATE",
-    newData: payment,
-  });
+    await writeAuditLog({
+      departmentId,
+      performedBy: BigInt(user.id),
+      tableName: "salary_payments",
+      recordId: payment.id,
+      action: "CREATE",
+      newData: payment,
+    });
 
-  revalidatePath("/salary-payments");
-  return { error: null, success: true, paymentId: payment.id.toString() };
+    revalidatePath("/salary-payments");
+    return { error: null, success: true, paymentId: payment.id.toString() };
+  } catch (error) {
+    return { error: friendlyErrorFor(error) };
+  }
 }
 
 export async function updateSalaryPayment(paymentId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -80,28 +103,32 @@ export async function updateSalaryPayment(paymentId: string, _prev: ActionState,
   const employee = await db.employees.findFirst({ where: { id: BigInt(values.employee_id), department_id: departmentId } });
   if (!employee) return { error: "Employee not found." };
 
-  const updated = await db.salary_payments.update({
-    where: { id },
-    data: {
-      employee_id: employee.id,
-      employee_name_snapshot: employee.employee_name,
-      employee_pan_snapshot: employee.pan_number,
-      ...buildData(values),
-    },
-  });
+  try {
+    const updated = await db.salary_payments.update({
+      where: { id },
+      data: {
+        employee_id: employee.id,
+        employee_name_snapshot: employee.employee_name,
+        employee_pan_snapshot: employee.pan_number,
+        ...buildData(values),
+      },
+    });
 
-  await writeAuditLog({
-    departmentId,
-    performedBy: BigInt(user.id),
-    tableName: "salary_payments",
-    recordId: updated.id,
-    action: "UPDATE",
-    oldData: existing,
-    newData: updated,
-  });
+    await writeAuditLog({
+      departmentId,
+      performedBy: BigInt(user.id),
+      tableName: "salary_payments",
+      recordId: updated.id,
+      action: "UPDATE",
+      oldData: existing,
+      newData: updated,
+    });
 
-  revalidatePath("/salary-payments");
-  return { error: null, success: true, paymentId: updated.id.toString() };
+    revalidatePath("/salary-payments");
+    return { error: null, success: true, paymentId: updated.id.toString() };
+  } catch (error) {
+    return { error: friendlyErrorFor(error) };
+  }
 }
 
 export async function cancelSalaryPayment(paymentId: string, reason: string): Promise<ActionState> {

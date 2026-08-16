@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SearchInput } from "@/components/search-input";
 import { StaffFormDialog } from "./staff-form-dialog";
 import { ResetStaffPasswordDialog } from "./reset-staff-password-dialog";
+import { formatDateTime } from "@/lib/utils";
 import type { PermissionsMap } from "./schema";
 
 export type StaffRow = {
@@ -17,6 +18,8 @@ export type StaffRow = {
   role_id: string;
   role_name: string;
   status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
+  last_login_at: string | null;
+  last_logout_at: string | null;
   isSelf: boolean;
   permissions: PermissionsMap;
 };
@@ -61,13 +64,15 @@ export function StaffTable({
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Last Login</TableHead>
+                <TableHead>Last Logout</TableHead>
                 {can_edit ? <TableHead className="text-right">Actions</TableHead> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     {rows.length === 0 ? "No staff accounts yet." : "No staff match your search."}
                   </TableCell>
                 </TableRow>
@@ -82,6 +87,12 @@ export function StaffTable({
                     <TableCell>{r.role_name}</TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[r.status]}>{r.status}</Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {r.last_login_at ? formatDateTime(r.last_login_at) : "Never"}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {r.last_logout_at ? formatDateTime(r.last_logout_at) : "-"}
                     </TableCell>
                     {can_edit ? (
                       <TableCell className="text-right">

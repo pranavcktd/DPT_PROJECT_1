@@ -46,6 +46,7 @@ export async function emailContractorPaymentCertificate(_prev: SendEmailActionSt
         total_deductions: Number(r.total_deductions ?? 0),
         net_payable_amount: Number(r.net_payable_amount ?? 0),
         treasury_payment_date: r.treasury_payment_date?.toISOString() ?? null,
+        payment_date_is_estimated: !!r.payment_date_is_estimated,
       })),
     }),
   );

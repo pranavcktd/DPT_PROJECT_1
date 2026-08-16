@@ -38,6 +38,8 @@ export default async function StaffPage() {
     role_id: u.role_id.toString(),
     role_name: u.roles.role_name,
     status: u.status,
+    last_login_at: u.last_login_at ? u.last_login_at.toISOString() : null,
+    last_logout_at: u.last_logout_at ? u.last_logout_at.toISOString() : null,
     isSelf: u.id === BigInt(user.id),
     permissions: Object.fromEntries(
       u.user_module_permissions.map((p) => [

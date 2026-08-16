@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { CertificatesTable } from "./certificates-table";
 
 export default async function CertificatesPage() {
-  const { user, can_create } = await getModulePermissions("WORK_EXPERIENCE_CERTIFICATE");
+  const { user, can_create, can_edit, can_delete } = await getModulePermissions("WORK_EXPERIENCE_CERTIFICATE");
   const departmentId = BigInt(user.departmentId);
   const theme = MODULE_THEME.certificates;
 
@@ -43,7 +43,7 @@ export default async function CertificatesPage() {
           ) : null
         }
       />
-      <CertificatesTable certificates={rows} />
+      <CertificatesTable certificates={rows} can_edit={can_edit} can_delete={can_delete} />
     </div>
   );
 }

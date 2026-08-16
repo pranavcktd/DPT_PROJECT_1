@@ -32,8 +32,12 @@ export default async function SalaryPaymentsPage() {
     gross_salary: Number(p.gross_salary),
     it_deduction_amount: Number(p.it_deduction_amount),
     net_payable_amount: Number(p.net_payable_amount ?? 0),
+    pay_mode: p.pay_mode,
     treasury_token_number: p.treasury_token_number ?? "",
+    token_generated_date: p.token_generated_date?.toISOString().slice(0, 10) ?? "",
+    actual_payment_date: p.actual_payment_date?.toISOString().slice(0, 10) ?? "",
     treasury_payment_date: p.treasury_payment_date?.toISOString().slice(0, 10) ?? "",
+    payment_date_is_estimated: !!p.payment_date_is_estimated,
     remarks: p.remarks ?? "",
     status: p.status,
   }));

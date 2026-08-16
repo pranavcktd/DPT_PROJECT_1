@@ -39,18 +39,16 @@ export function useLiveSearchParams<T extends Record<string, string>>(defaults: 
 
   const setValue = useCallback(
     (key: keyof T, value: string, debounceMs = 300) => {
-      setValues((prev) => {
-        const next = { ...prev, [key]: value };
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        if (debounceMs === 0) {
-          pushParams(next);
-        } else {
-          debounceRef.current = setTimeout(() => pushParams(next), debounceMs);
-        }
-        return next;
-      });
+      const next = { ...values, [key]: value };
+      setValues(next);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceMs === 0) {
+        pushParams(next);
+      } else {
+        debounceRef.current = setTimeout(() => pushParams(next), debounceMs);
+      }
     },
-    [pushParams]
+    [values, pushParams]
   );
 
   const reset = useCallback(() => {

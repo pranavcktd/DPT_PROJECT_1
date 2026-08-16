@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, formatEnumLabel, formatINR } from "@/lib/utils";
-import { PAYMENT_TYPES, salaryPaymentFormSchema, type SalaryPaymentFormInput, type SalaryPaymentFormValues } from "./schema";
+import { PAY_MODES, PAYMENT_TYPES, salaryPaymentFormSchema, type SalaryPaymentFormInput, type SalaryPaymentFormValues } from "./schema";
 import { createSalaryPayment, updateSalaryPayment } from "./actions";
 
 type EmployeeOption = { id: string; employee_name: string; pan_number: string };
@@ -60,14 +60,17 @@ export function SalaryPaymentFormDialog({
       other_type_label: "",
       gross_salary: 0,
       it_deduction_amount: 0,
+      pay_mode: "TREASURY",
       treasury_token_number: "",
-      treasury_payment_date: "",
+      token_generated_date: "",
+      actual_payment_date: "",
       remarks: "",
     },
   });
 
   const employeeId = form.watch("employee_id");
   const paymentType = form.watch("payment_type");
+  const payMode = form.watch("pay_mode");
   const selectedEmployee = employees.find((e) => e.id === employeeId);
   const grossSalary = Number(form.watch("gross_salary")) || 0;
   const itDeduction = Number(form.watch("it_deduction_amount")) || 0;
@@ -228,30 +231,81 @@ export function SalaryPaymentFormDialog({
 
             <FormField
               control={form.control}
-              name="treasury_token_number"
+              name="pay_mode"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Treasury Token Number</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
+                  <FormLabel>Pay Mode</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue>{(v: string) => formatEnumLabel(v)}</SelectValue>
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {PAY_MODES.map((m) => (
+                        <SelectItem key={m} value={m}>
+                          {formatEnumLabel(m)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="treasury_payment_date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Treasury Payment Date</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
+            {payMode === "OTHER_THAN_TREASURY" ? (
+              <FormField
+                control={form.control}
+                name="actual_payment_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Payment Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <>
+                <FormField
+                  control={form.control}
+                  name="treasury_token_number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Treasury Token Number</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="token_generated_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Token Generated Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
+
+            {payMode === "TREASURY" ? (
+              <p className="text-xs text-muted-foreground sm:col-span-2">
+                {isEdit && payment?.actual_payment_date
+                  ? `Reconciled treasury payment date: ${payment.actual_payment_date}. Enter a correction via Treasury Reconciliation.`
+                  : "The actual treasury payment date is entered later via Treasury Reconciliation, once the monthly reconciliation statement confirms it."}
+              </p>
+            ) : null}
 
             <FormField
               control={form.control}

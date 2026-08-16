@@ -37,6 +37,7 @@ CREATE TYPE payments_royalty_type AS ENUM ('PERCENTAGE','FIXED_AMOUNT','NOT_APPL
 CREATE TYPE payments_stamp_duty_type AS ENUM ('PERCENTAGE','FIXED_AMOUNT','NOT_APPLICABLE');
 CREATE TYPE payments_other_deduction_type AS ENUM ('PERCENTAGE','FIXED_AMOUNT','NOT_APPLICABLE');
 CREATE TYPE payments_status AS ENUM ('SAVED','APPROVED','CANCELLED');
+CREATE TYPE pay_mode_type AS ENUM ('TREASURY','OTHER_THAN_TREASURY');  -- shared by payments and salary_payments
 CREATE TYPE salary_payments_payment_type AS ENUM ('SALARY','DA','ARREAR','MEDICAL_REIMBURSEMENT','OTHER');
 CREATE TYPE certificate_logs_certificate_type AS ENUM ('PAYMENT_CERTIFICATE','WORK_EXPERIENCE_CERTIFICATE','TAX_LEDGER_REPORT');
 CREATE TYPE certificate_logs_file_format AS ENUM ('PDF','EXCEL','CSV');
@@ -126,6 +127,7 @@ CREATE TABLE users (
   must_change_password BOOLEAN NOT NULL DEFAULT FALSE,  -- set TRUE whenever an admin resets a password to the default
   status        users_status NOT NULL DEFAULT 'ACTIVE',
   last_login_at TIMESTAMP NULL,
+  last_logout_at TIMESTAMP NULL,
   created_by    BIGINT NULL,           -- self-reference: which user created this account
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -347,8 +349,26 @@ CREATE TABLE payments (
   cumulative_gross_amount_till_date DECIMAL(15,2) NOT NULL DEFAULT 0,
 
   -- Part 3: treasury reference
+  -- pay_mode drives which of the two date fields is authoritative:
+  -- TREASURY: token_generated_date is captured at entry time; actual_payment_date
+  --   is filled in later (see the Treasury Reconciliation screen) once the
+  --   monthly reconciliation statement confirms the treasury's real payment date.
+  -- OTHER_THAN_TREASURY: actual_payment_date is entered directly at entry time -
+  --   there is no token/reconciliation step for this mode.
+  pay_mode              pay_mode_type NOT NULL DEFAULT 'TREASURY',
   treasury_token_number VARCHAR(50) NULL,
-  treasury_payment_date DATE NULL,
+  token_generated_date  DATE NULL,
+  actual_payment_date   DATE NULL,
+  -- the "real" date to report against - resolves to the reconciled date once
+  -- known, falling back to the token date until then. Every report/PDF/export
+  -- reads this column unchanged; only entry/import/reconciliation write to the
+  -- two plain columns above.
+  treasury_payment_date DATE GENERATED ALWAYS AS (COALESCE(actual_payment_date, token_generated_date)) STORED,
+  -- true exactly when treasury_payment_date is still a guess (token date, not
+  -- yet reconciled) - surfaced as a caveat badge in reports/certificates.
+  payment_date_is_estimated BOOLEAN GENERATED ALWAYS AS (
+    pay_mode = 'TREASURY' AND actual_payment_date IS NULL AND token_generated_date IS NOT NULL
+  ) STORED,
   remarks                VARCHAR(500) NULL,
 
   status              payments_status NOT NULL DEFAULT 'SAVED',
@@ -371,6 +391,14 @@ CREATE TABLE payments (
   CONSTRAINT chk_payment_it_tds_rate CHECK (it_tds_rate BETWEEN 0 AND 100),
   CONSTRAINT chk_payment_gst_tds_rate CHECK (gst_tds_rate BETWEEN 0 AND 100),
   CONSTRAINT chk_payment_cess_rate CHECK (labour_cess_rate BETWEEN 0 AND 100),
+
+  -- Date hierarchy: agreement -> invoice -> token generated -> actual payment.
+  -- Enforced here (not just in the app) so no entry path - manual, CSV
+  -- import, or future code - can persist an out-of-order date.
+  CONSTRAINT chk_payment_invoice_after_agreement CHECK (invoice_date >= agreement_date_snapshot),
+  CONSTRAINT chk_payment_token_after_invoice CHECK (token_generated_date IS NULL OR token_generated_date >= invoice_date),
+  CONSTRAINT chk_payment_actual_after_invoice CHECK (actual_payment_date IS NULL OR actual_payment_date >= invoice_date),
+  CONSTRAINT chk_payment_actual_after_token CHECK (actual_payment_date IS NULL OR token_generated_date IS NULL OR actual_payment_date >= token_generated_date),
 
   CONSTRAINT uq_payment_work_invoice UNIQUE (work_id, invoice_number)
 );
@@ -416,8 +444,15 @@ CREATE TABLE salary_payments (
   gross_salary            DECIMAL(15,2) NOT NULL,
   it_deduction_amount     DECIMAL(15,2) NOT NULL DEFAULT 0,
   net_payable_amount      DECIMAL(15,2) GENERATED ALWAYS AS (gross_salary - it_deduction_amount) STORED,
+  -- see the matching comment on payments.pay_mode above - same semantics here
+  pay_mode                pay_mode_type NOT NULL DEFAULT 'TREASURY',
   treasury_token_number   VARCHAR(50) NULL,
-  treasury_payment_date   DATE NULL,                       -- basis for the Form 24Q quarterly report
+  token_generated_date    DATE NULL,
+  actual_payment_date     DATE NULL,
+  treasury_payment_date   DATE GENERATED ALWAYS AS (COALESCE(actual_payment_date, token_generated_date)) STORED,  -- basis for the Form 24Q quarterly report
+  payment_date_is_estimated BOOLEAN GENERATED ALWAYS AS (
+    pay_mode = 'TREASURY' AND actual_payment_date IS NULL AND token_generated_date IS NOT NULL
+  ) STORED,
   status                  payments_status NOT NULL DEFAULT 'SAVED',   -- reuses the non-salary payments status enum
   cancellation_reason     VARCHAR(500) NULL,
   remarks                 VARCHAR(500) NULL,
@@ -428,7 +463,8 @@ CREATE TABLE salary_payments (
   CONSTRAINT fk_salpay_employee   FOREIGN KEY (employee_id) REFERENCES employees(id),
   CONSTRAINT fk_salpay_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
   CONSTRAINT chk_salpay_gross_salary CHECK (gross_salary > 0),
-  CONSTRAINT chk_salpay_it_deduction CHECK (it_deduction_amount >= 0)
+  CONSTRAINT chk_salpay_it_deduction CHECK (it_deduction_amount >= 0),
+  CONSTRAINT chk_salpay_actual_after_token CHECK (actual_payment_date IS NULL OR token_generated_date IS NULL OR actual_payment_date >= token_generated_date)
 );
 CREATE INDEX idx_salpay_department ON salary_payments (department_id);
 CREATE INDEX idx_salpay_employee ON salary_payments (employee_id);

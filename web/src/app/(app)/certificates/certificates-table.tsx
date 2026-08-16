@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { SearchInput } from "@/components/search-input";
 import { SendEmailDialog } from "@/components/send-email-dialog";
 import { formatEnumLabel } from "@/lib/utils";
 import { emailWorkExperienceCertificate } from "./email-actions";
+import { DeleteCertificateDialog } from "./delete-certificate-dialog";
 
 export type CertificateRow = {
   id: string;
@@ -21,7 +23,15 @@ export type CertificateRow = {
   issued_at: string;
 };
 
-export function CertificatesTable({ certificates }: { certificates: CertificateRow[] }) {
+export function CertificatesTable({
+  certificates,
+  can_edit,
+  can_delete,
+}: {
+  certificates: CertificateRow[];
+  can_edit: boolean;
+  can_delete: boolean;
+}) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -87,6 +97,14 @@ export function CertificatesTable({ certificates }: { certificates: CertificateR
                         triggerLabel="Email"
                         size="sm"
                       />
+                      {can_edit ? (
+                        <Link href={`/certificates/${c.id}/edit`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                          Edit
+                        </Link>
+                      ) : null}
+                      {can_delete ? (
+                        <DeleteCertificateDialog certificateId={c.id} certificateNumber={c.certificate_number} />
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 ))

@@ -12,33 +12,58 @@ export type ImportActionState = { error: string | null; summary?: ImportSummary 
 
 const deductionType = z.enum(["PERCENTAGE", "FIXED_AMOUNT", "NOT_APPLICABLE"]).optional().or(z.literal(""));
 
-const paymentImportRowSchema = z.object({
-  work_name: z.string().trim().min(1, "Work name is required"),
-  contractor_pan: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "contractor_pan must be a valid PAN matching an existing contractor"),
-  agreement_number: z.string().trim().min(1, "Agreement number is required").max(50),
-  agreement_date: z.string().min(1, "Agreement date is required"),
-  invoice_number: z.string().trim().min(1, "Invoice number is required").max(50),
-  invoice_date: z.string().min(1, "Invoice date is required"),
-  base_cost: z.coerce.number().positive("Must be greater than 0"),
-  gst_rate: z.coerce.number().min(0).max(100).optional().or(z.literal("")),
-  it_tds_rate: z.coerce.number().min(0).max(100).optional().or(z.literal("")),
-  gst_tds_rate: z.coerce.number().min(0).max(100).optional().or(z.literal("")),
-  labour_cess_rate: z.coerce.number().min(0).max(100).optional().or(z.literal("")),
-  royalty_type: deductionType,
-  royalty_value: z.coerce.number().min(0).optional().or(z.literal("")),
-  stamp_duty_type: deductionType,
-  stamp_duty_value: z.coerce.number().min(0).optional().or(z.literal("")),
-  other_deduction_type: deductionType,
-  other_deduction_value: z.coerce.number().min(0).optional().or(z.literal("")),
-  other_deduction_remarks: z.string().trim().max(255).optional().or(z.literal("")),
-  treasury_token_number: z.string().trim().max(50).optional().or(z.literal("")),
-  treasury_payment_date: z.string().optional().or(z.literal("")),
-  remarks: z.string().trim().max(500).optional().or(z.literal("")),
-});
+const paymentImportRowSchema = z
+  .object({
+    work_name: z.string().trim().min(1, "Work name is required"),
+    contractor_pan: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "contractor_pan must be a valid PAN matching an existing contractor"),
+    agreement_number: z.string().trim().min(1, "Agreement number is required").max(50),
+    agreement_date: z.string().min(1, "Agreement date is required"),
+    invoice_number: z.string().trim().min(1, "Invoice number is required").max(50),
+    invoice_date: z.string().min(1, "Invoice date is required"),
+    base_cost: z.coerce.number().positive("Must be greater than 0"),
+    gst_rate: z.coerce.number().min(0).max(100).optional().or(z.literal("")),
+    it_tds_rate: z.coerce.number().min(0).max(100).optional().or(z.literal("")),
+    gst_tds_rate: z.coerce.number().min(0).max(100).optional().or(z.literal("")),
+    labour_cess_rate: z.coerce.number().min(0).max(100).optional().or(z.literal("")),
+    royalty_type: deductionType,
+    royalty_value: z.coerce.number().min(0).optional().or(z.literal("")),
+    stamp_duty_type: deductionType,
+    stamp_duty_value: z.coerce.number().min(0).optional().or(z.literal("")),
+    other_deduction_type: deductionType,
+    other_deduction_value: z.coerce.number().min(0).optional().or(z.literal("")),
+    other_deduction_remarks: z.string().trim().max(255).optional().or(z.literal("")),
+    pay_mode: z.enum(["TREASURY", "OTHER_THAN_TREASURY"]).optional().or(z.literal("")),
+    treasury_token_number: z.string().trim().max(50).optional().or(z.literal("")),
+    token_generated_date: z.string().optional().or(z.literal("")),
+    actual_payment_date: z.string().optional().or(z.literal("")),
+    remarks: z.string().trim().max(500).optional().or(z.literal("")),
+  })
+  .superRefine((data, ctx) => {
+    // Same date hierarchy the entry form and DB CHECK constraints enforce -
+    // bulk import is a data-entry path too, and must not bypass it.
+    if (data.invoice_date < data.agreement_date) {
+      ctx.addIssue({ code: "custom", message: "invoice_date cannot be before agreement_date", path: ["invoice_date"] });
+    }
+    const payMode = data.pay_mode || "TREASURY";
+    if (payMode === "TREASURY" && data.token_generated_date && data.token_generated_date < data.invoice_date) {
+      ctx.addIssue({
+        code: "custom",
+        message: "token_generated_date cannot be before invoice_date",
+        path: ["token_generated_date"],
+      });
+    }
+    if (payMode === "OTHER_THAN_TREASURY" && data.actual_payment_date && data.actual_payment_date < data.invoice_date) {
+      ctx.addIssue({
+        code: "custom",
+        message: "actual_payment_date cannot be before invoice_date",
+        path: ["actual_payment_date"],
+      });
+    }
+  });
 
 function toNullable(value?: string): string | null {
   return value && value.length > 0 ? value : null;
@@ -124,6 +149,8 @@ export async function importPayments(_prev: ImportActionState, formData: FormDat
       otherDeductionValue: num(values.other_deduction_value),
     });
 
+    const payMode = values.pay_mode || "TREASURY";
+
     try {
       const payment = await db.payments.create({
         data: {
@@ -158,8 +185,10 @@ export async function importPayments(_prev: ImportActionState, formData: FormDat
           other_deduction_remarks: toNullable(values.other_deduction_remarks),
           total_deductions: calc.totalDeductions,
           net_payable_amount: calc.netPayableAmount,
-          treasury_token_number: toNullable(values.treasury_token_number),
-          treasury_payment_date: toNullableDate(values.treasury_payment_date),
+          pay_mode: payMode,
+          treasury_token_number: payMode === "TREASURY" ? toNullable(values.treasury_token_number) : null,
+          token_generated_date: payMode === "TREASURY" ? toNullableDate(values.token_generated_date) : null,
+          actual_payment_date: payMode === "OTHER_THAN_TREASURY" ? toNullableDate(values.actual_payment_date) : null,
           remarks: toNullable(values.remarks),
           status: "SAVED",
           created_by: BigInt(user.id),

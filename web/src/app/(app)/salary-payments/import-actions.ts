@@ -21,13 +21,24 @@ const salaryImportRowSchema = z
     other_type_label: z.string().trim().max(100).optional().or(z.literal("")),
     gross_salary: z.coerce.number().positive("Must be greater than 0"),
     it_deduction_amount: z.coerce.number().min(0).optional().or(z.literal("")),
+    pay_mode: z.enum(["TREASURY", "OTHER_THAN_TREASURY"]).optional().or(z.literal("")),
     treasury_token_number: z.string().trim().max(50).optional().or(z.literal("")),
-    treasury_payment_date: z.string().optional().or(z.literal("")),
+    token_generated_date: z.string().optional().or(z.literal("")),
+    actual_payment_date: z.string().optional().or(z.literal("")),
     remarks: z.string().trim().max(500).optional().or(z.literal("")),
   })
   .refine((data) => data.payment_type !== "OTHER" || (data.other_type_label && data.other_type_label.trim().length > 0), {
     message: "other_type_label is required when payment_type is OTHER",
     path: ["other_type_label"],
+  })
+  .superRefine((data, ctx) => {
+    if (data.token_generated_date && data.actual_payment_date && data.actual_payment_date < data.token_generated_date) {
+      ctx.addIssue({
+        code: "custom",
+        message: "actual_payment_date cannot be before token_generated_date",
+        path: ["actual_payment_date"],
+      });
+    }
   });
 
 function toNullable(value?: string): string | null {
@@ -71,6 +82,8 @@ export async function importSalaryPayments(_prev: ImportActionState, formData: F
       continue;
     }
 
+    const payMode = values.pay_mode || "TREASURY";
+
     try {
       const payment = await db.salary_payments.create({
         data: {
@@ -82,8 +95,10 @@ export async function importSalaryPayments(_prev: ImportActionState, formData: F
           other_type_label: values.payment_type === "OTHER" ? toNullable(values.other_type_label) : null,
           gross_salary: values.gross_salary,
           it_deduction_amount: values.it_deduction_amount || 0,
-          treasury_token_number: toNullable(values.treasury_token_number),
-          treasury_payment_date: toNullableDate(values.treasury_payment_date),
+          pay_mode: payMode,
+          treasury_token_number: payMode === "TREASURY" ? toNullable(values.treasury_token_number) : null,
+          token_generated_date: payMode === "TREASURY" ? toNullableDate(values.token_generated_date) : null,
+          actual_payment_date: payMode === "OTHER_THAN_TREASURY" ? toNullableDate(values.actual_payment_date) : null,
           remarks: toNullable(values.remarks),
           status: "SAVED",
           created_by: BigInt(user.id),

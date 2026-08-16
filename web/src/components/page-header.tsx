@@ -22,7 +22,7 @@ export function PageHeader({
           <Icon className="size-5" />
         </div>
         <div>
-          <h1 className="text-lg font-semibold leading-tight">{title}</h1>
+          <h1 className="font-heading text-lg font-semibold leading-tight">{title}</h1>
           {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         </div>
       </div>

@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireModulePermission } from "@/lib/session";
 import { writeAuditLog } from "@/lib/audit";
 import { contractorFormSchema, type ContractorFormValues } from "./schema";
+import { uniqueConstraintFields } from "@/lib/prisma-errors";
 
 export type ActionState = { error: string | null; success?: boolean };
 
@@ -32,11 +33,13 @@ function buildData(values: ContractorFormValues) {
   };
 }
 
-function friendlyErrorFor(error: unknown): string {
+function friendlyErrorFor(error: unknown, values: ContractorFormValues): string {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2002") {
-      const target = (error.meta?.target as string[] | undefined)?.join(", ");
-      return `A contractor with this ${target?.includes("pan") ? "PAN" : target?.includes("vendor_code") ? "vendor code" : "value"} already exists.`;
+      const fields = uniqueConstraintFields(error);
+      if (fields.includes("pan_number")) return `A contractor with PAN "${values.pan_number}" already exists.`;
+      if (fields.includes("vendor_code")) return `A contractor with vendor code "${values.vendor_code}" already exists.`;
+      return "A contractor with this value already exists.";
     }
   }
   throw error;
@@ -67,7 +70,7 @@ export async function createContractor(_prev: ActionState, formData: FormData): 
       newData: contractor,
     });
   } catch (error) {
-    const message = friendlyErrorFor(error);
+    const message = friendlyErrorFor(error, parsed.data);
     return { error: message };
   }
 
@@ -108,7 +111,7 @@ export async function updateContractor(
       newData: updated,
     });
   } catch (error) {
-    const message = friendlyErrorFor(error);
+    const message = friendlyErrorFor(error, parsed.data);
     return { error: message };
   }
 

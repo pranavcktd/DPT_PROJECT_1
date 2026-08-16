@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { PrintButton } from "@/components/print-button";
 import { ReportFilterBar } from "@/components/report-filter-bar";
 import { SendEmailDialog } from "@/components/send-email-dialog";
+import { EstimatedDateBadge } from "@/components/estimated-date-badge";
 import { requireModulePermission } from "@/lib/session";
 import { db } from "@/lib/db";
 import { formatDateForReport } from "@/lib/reports";
@@ -109,7 +110,10 @@ export default async function ContractorCertificateReportPage(props: PageProps<"
                         <TableCell className="text-right">{formatINR(Number(r.base_cost))}</TableCell>
                         <TableCell className="text-right">{formatINR(Number(r.total_deductions ?? 0))}</TableCell>
                         <TableCell className="text-right">{formatINR(Number(r.net_payable_amount ?? 0))}</TableCell>
-                        <TableCell>{formatDateForReport(r.treasury_payment_date)}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {formatDateForReport(r.treasury_payment_date)}
+                          <EstimatedDateBadge estimated={!!r.payment_date_is_estimated} />
+                        </TableCell>
                       </TableRow>
                     ))}
                     <TableRow className="font-medium">
