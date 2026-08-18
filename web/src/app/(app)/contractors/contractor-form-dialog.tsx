@@ -29,15 +29,28 @@ export function ContractorFormDialog({
   triggerVariant = "default",
   triggerSize = "default",
   triggerClassName,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  hideTrigger = false,
+  submitLabel,
+  onCreated,
 }: {
   contractor?: ContractorRecord;
   triggerLabel: string;
   triggerVariant?: ButtonVariant;
   triggerSize?: ButtonSize;
   triggerClassName?: string;
+  /** For embedding as a controlled "quick add" popup (e.g. from a party search combobox) instead of the default self-contained trigger. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
+  submitLabel?: string;
+  onCreated?: (contractor: { id: string; firm_name: string }) => void;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
   const [serverError, setServerError] = useState<string | null>(null);
   const isEdit = !!contractor;
 
@@ -49,6 +62,9 @@ export function ContractorFormDialog({
       pan_number: "",
       gstin: "",
       address: "",
+      district: "",
+      state: "",
+      pin_code: "",
       contact_person: "",
       phone: "",
       email: "",
@@ -75,6 +91,10 @@ export function ContractorFormDialog({
       return;
     }
 
+    if (!isEdit && result.contractorId && onCreated) {
+      onCreated({ id: result.contractorId, firm_name: values.firm_name });
+    }
+
     setOpen(false);
     form.reset();
     router.refresh();
@@ -91,12 +111,14 @@ export function ContractorFormDialog({
       {/* Plain <button> (not <Button>) - this trigger renders eagerly in the
           page, so nesting a component with its own data-slot here would
           cause an SSR/hydration mismatch (see src/app/(app)/layout.tsx). */}
-      <DialogTrigger
-        className={cn(buttonVariants({ variant: triggerVariant, size: triggerSize }), triggerClassName)}
-        render={<button type="button" />}
-      >
-        {triggerLabel}
-      </DialogTrigger>
+      {!hideTrigger ? (
+        <DialogTrigger
+          className={cn(buttonVariants({ variant: triggerVariant, size: triggerSize }), triggerClassName)}
+          render={<button type="button" />}
+        >
+          {triggerLabel}
+        </DialogTrigger>
+      ) : null}
       <DialogContent className="max-h-[90vh] sm:max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Contractor" : "New Contractor"}</DialogTitle>
@@ -235,6 +257,45 @@ export function ContractorFormDialog({
             />
             <FormField
               control={form.control}
+              name="district"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>District</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="state"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>State</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="pin_code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Pin Code</FormLabel>
+                  <FormControl>
+                    <Input {...field} maxLength={6} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="bank_name"
               render={({ field }) => (
                 <FormItem>
@@ -303,7 +364,7 @@ export function ContractorFormDialog({
 
             <DialogFooter className="sm:col-span-2">
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Saving..." : isEdit ? "Save changes" : "Create contractor"}
+                {form.formState.isSubmitting ? "Saving..." : (submitLabel ?? (isEdit ? "Save changes" : "Create contractor"))}
               </Button>
             </DialogFooter>
           </form>

@@ -7,6 +7,9 @@ const COLUMNS = [
   "pan_number",
   "gstin",
   "address",
+  "district",
+  "state",
+  "pin_code",
   "contact_person",
   "phone",
   "email",
@@ -28,7 +31,25 @@ export async function GET() {
   }
 
   const csv = toCsv(COLUMNS, [
-    ["Sunrise Constructions Pvt Ltd", "V-SUN01", "AAACS1234A", "29AAACS1234A1Z5", "", "", "", "", "", "", "", "", "", "ACTIVE"],
+    [
+      "Sunrise Constructions Pvt Ltd",
+      "V-SUN01",
+      "AAACS1234A",
+      "29AAACS1234A1Z5",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "ACTIVE",
+    ],
   ]);
 
   return new Response(csv, {

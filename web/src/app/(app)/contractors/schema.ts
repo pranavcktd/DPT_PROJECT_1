@@ -16,6 +16,9 @@ export const contractorFormSchema = z.object({
     .optional()
     .or(z.literal("")),
   address: z.string().trim().max(255).optional().or(z.literal("")),
+  district: z.string().trim().max(100).optional().or(z.literal("")),
+  state: z.string().trim().max(100).optional().or(z.literal("")),
+  pin_code: z.string().trim().regex(/^[0-9]{6}$/, "Pin code must be 6 digits").optional().or(z.literal("")),
   contact_person: z.string().trim().max(150).optional().or(z.literal("")),
   phone: z.string().trim().max(20).optional().or(z.literal("")),
   email: z.string().trim().email("Invalid email").max(150).optional().or(z.literal("")),

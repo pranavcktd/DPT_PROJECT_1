@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { deleteDepartment, resetDepartmentAdminPassword, setDepartmentStatus } from "./actions";
+import { deleteDepartment, resetDepartmentAdminPassword, setAllowFuturePaymentDates, setDepartmentStatus } from "./actions";
 import { DEFAULT_PASSWORD } from "@/lib/auth-constants";
 
 export function ToggleStatusDialog({
@@ -71,6 +71,60 @@ export function ToggleStatusDialog({
             disabled={isSubmitting}
           >
             {isSubmitting ? "Saving..." : status === "ACTIVE" ? "Confirm Disable" : "Confirm Enable"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function FutureDatesToggleDialog({
+  departmentId,
+  departmentName,
+  allowFutureDates,
+}: {
+  departmentId: string;
+  departmentName: string;
+  allowFutureDates: boolean;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleConfirm() {
+    setError(null);
+    setIsSubmitting(true);
+    const result = await setAllowFuturePaymentDates(departmentId, !allowFutureDates);
+    setIsSubmitting(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    setOpen(false);
+    router.refresh();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) setError(null); }}>
+      <DialogTrigger className={buttonVariants({ variant: "outline", size: "sm" })} render={<button type="button" />}>
+        {allowFutureDates ? "Disallow Future Dates" : "Allow Future Dates"}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {allowFutureDates ? "Disallow" : "Allow"} future-dated entries - {departmentName}
+          </DialogTitle>
+          <DialogDescription>
+            {allowFutureDates
+              ? "Payment Entry will go back to rejecting agreement/invoice dates set in the future for this department."
+              : "Payment Entry will allow agreement and invoice dates set in the future for this department. Token generated date is never restricted, regardless of this setting."}
+          </DialogDescription>
+        </DialogHeader>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        <DialogFooter>
+          <Button onClick={handleConfirm} disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : "Confirm"}
           </Button>
         </DialogFooter>
       </DialogContent>

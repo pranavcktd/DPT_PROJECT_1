@@ -1,7 +1,7 @@
 import { requireModulePermission, ForbiddenError, UnauthenticatedError } from "@/lib/session";
 import { formatDateForReport, toCsv } from "@/lib/reports";
-import { formatEnumLabel } from "@/lib/utils";
 import { getSalaryPaymentsReportRows, type SalaryPaymentStatusFilter } from "@/app/(app)/reports/data/salary-payments/data";
+import { PAYMENT_TYPE_LABELS } from "@/app/(app)/salary-payments/schema";
 
 export async function GET(request: Request) {
   let user;
@@ -21,15 +21,25 @@ export async function GET(request: Request) {
 
   const rows = await getSalaryPaymentsReportRows(BigInt(user.departmentId), search, status, from, to);
   const csv = toCsv(
-    ["Employee", "Payment Type", "Gross Salary", "IT Deduction", "Net Payable", "Status", "Payment Date"],
+    [
+      "Employee",
+      "Payment Type",
+      "Gross Salary",
+      "IT Deduction",
+      "Net Payable",
+      "Status",
+      "Token Generated Date",
+      "Reconciled Date",
+    ],
     rows.map((p) => [
       p.employee_name_snapshot,
-      p.payment_type === "OTHER" ? p.other_type_label : formatEnumLabel(p.payment_type),
+      p.payment_type === "OTHER" ? p.other_type_label : PAYMENT_TYPE_LABELS[p.payment_type],
       Number(p.gross_salary),
       Number(p.it_deduction_amount),
       Number(p.net_payable_amount ?? 0),
       p.status,
-      formatDateForReport(p.treasury_payment_date),
+      formatDateForReport(p.token_generated_date),
+      formatDateForReport(p.actual_payment_date),
     ]),
   );
 

@@ -17,6 +17,9 @@ const MAX_LOGO_SIZE_BYTES = 2 * 1024 * 1024;
 function toNullable(value?: string): string | null {
   return value && value.length > 0 ? value : null;
 }
+function toNullableDate(value?: string): Date | null {
+  return value && value.length > 0 ? new Date(value) : null;
+}
 
 function friendlyErrorFor(error: unknown): string {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -66,6 +69,7 @@ export async function updateDepartmentProfile(_prev: ActionState, formData: Form
         district: toNullable(parsed.data.district),
         state: toNullable(parsed.data.state),
         gstin: toNullable(parsed.data.gstin),
+        gstin_registration_date: toNullableDate(parsed.data.gstin_registration_date),
         pan: toNullable(parsed.data.pan),
         tan: toNullable(parsed.data.tan),
         official_email: toNullable(parsed.data.official_email),

@@ -5,9 +5,10 @@ import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireModulePermission } from "@/lib/session";
 import { writeAuditLog } from "@/lib/audit";
+import { uniqueConstraintFields } from "@/lib/prisma-errors";
 import { employeeFormSchema, type EmployeeFormValues } from "./schema";
 
-export type ActionState = { error: string | null; success?: boolean };
+export type ActionState = { error: string | null; success?: boolean; employeeId?: string };
 
 function toNullable(value?: string): string | null {
   return value && value.length > 0 ? value : null;
@@ -18,6 +19,10 @@ function toNullableDate(value?: string): Date | null {
 
 function friendlyErrorFor(error: unknown): string {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    const fields = uniqueConstraintFields(error);
+    if (fields.includes("employee_code")) {
+      return "An employee with this Employee ID already exists.";
+    }
     return "An employee with this PAN already exists.";
   }
   throw error;
@@ -27,6 +32,9 @@ function buildData(values: EmployeeFormValues) {
   return {
     employee_name: values.employee_name,
     pan_number: values.pan_number,
+    email: toNullable(values.email),
+    designation: toNullable(values.designation),
+    employee_code: toNullable(values.employee_code),
     dob: toNullableDate(values.dob),
     mobile: toNullable(values.mobile),
     joining_date: toNullableDate(values.joining_date),
@@ -56,12 +64,12 @@ export async function createEmployee(_prev: ActionState, formData: FormData): Pr
       action: "CREATE",
       newData: employee,
     });
+
+    revalidatePath("/employees");
+    return { error: null, success: true, employeeId: employee.id.toString() };
   } catch (error) {
     return { error: friendlyErrorFor(error) };
   }
-
-  revalidatePath("/employees");
-  return { error: null, success: true };
 }
 
 export async function updateEmployee(employeeId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {

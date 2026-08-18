@@ -15,6 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { calculatePayment, deriveGstTdsType, type DeductionType } from "@/lib/payment-calc";
 import { formatEnumLabel } from "@/lib/utils";
+import { PartyCombobox } from "@/components/party-combobox";
+import { TokenCombobox, type TokenOption } from "@/components/token-combobox";
+import { ContractorFormDialog } from "../../contractors/contractor-form-dialog";
 import { PAY_MODES, paymentFormSchema, type PaymentFormInput, type PaymentFormValues } from "../schema";
 import { createPayment, updatePayment } from "../actions";
 
@@ -35,6 +38,11 @@ type ContractorOption = {
   bank_name: string | null;
   account_number: string | null;
   ifsc_code: string | null;
+  address: string | null;
+  district: string | null;
+  state: string | null;
+  pin_code: string | null;
+  phone: string | null;
 };
 
 type FormReturn = UseFormReturn<PaymentFormInput, unknown, PaymentFormValues>;
@@ -62,6 +70,13 @@ const DEDUCTION_TYPE_LABELS: Record<DeductionType, string> = {
 
 function formatINR(value: number) {
   return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+}
+
+function formatContractorAddress(contractor: ContractorOption): string {
+  const parts = [contractor.address, contractor.district, contractor.state, contractor.pin_code].filter(
+    (p): p is string => !!p && p.length > 0,
+  );
+  return parts.length > 0 ? parts.join(", ") : "-";
 }
 
 function numericFieldProps(form: FormReturn, name: "base_cost" | "royalty_value" | "stamp_duty_value" | "other_deduction_value") {
@@ -182,19 +197,32 @@ function AmountOrPercentField({
 export function PaymentForm({
   works,
   contractors,
+  tokens,
   departmentStateCode,
+  gstinRegistrationDate,
+  allowFutureDates,
   payment,
 }: {
   works: WorkOption[];
   contractors: ContractorOption[];
+  tokens: TokenOption[];
   departmentStateCode: string | null;
-  payment?: (PaymentFormValues & { id: string });
+  gstinRegistrationDate?: string | null;
+  allowFutureDates?: boolean;
+  payment?: (PaymentFormValues & { id: string; total_bill_value: number });
 }) {
   const router = useRouter();
+  const todayIsoDate = new Date().toISOString().slice(0, 10);
   const isEdit = !!payment;
   const [activeTab, setActiveTab] = useState<TabKey>("work");
   const [completedTabs, setCompletedTabs] = useState<Set<TabKey>>(new Set());
   const [serverError, setServerError] = useState<string | null>(null);
+  // Newly-created contractors from the inline "Add new" popup - merged in
+  // locally so they're immediately selectable/visible without waiting on the
+  // page's server-side refresh to land. GST TDS type is always re-derived
+  // server-side at submit regardless of what this preview shows.
+  const [extraContractors, setExtraContractors] = useState<ContractorOption[]>([]);
+  const allContractors = [...contractors, ...extraContractors.filter((ec) => !contractors.some((c) => c.id === ec.id))];
 
   const form = useForm<PaymentFormInput, unknown, PaymentFormValues>({
     resolver: zodResolver(paymentFormSchema),
@@ -232,7 +260,7 @@ export function PaymentForm({
 
   const watched = form.watch();
   const selectedWork = works.find((w) => w.id === watched.work_id);
-  const selectedContractor = contractors.find((c) => c.id === watched.contractor_id);
+  const selectedContractor = allContractors.find((c) => c.id === watched.contractor_id);
   const gstTdsType = deriveGstTdsType(departmentStateCode, selectedContractor?.gst_state_code ?? null);
 
   useEffect(() => {
@@ -255,16 +283,16 @@ export function PaymentForm({
     otherDeductionValue: Number(watched.other_deduction_value) || 0,
   });
 
-  // When editing, this payment's own base cost is already counted in the
-  // work's "utilized" figure - add it back so the projection reflects
+  // When editing, this payment's own total bill value is already counted in
+  // the work's "utilized" figure - add it back so the projection reflects
   // budget free excluding this record's own existing allocation.
-  const ownExistingBaseCost = isEdit && payment.work_id === watched.work_id ? Number(payment.base_cost) : 0;
-  const effectiveRemaining = selectedWork ? selectedWork.remaining + ownExistingBaseCost : undefined;
-  const projectedRemaining = effectiveRemaining !== undefined ? effectiveRemaining - baseCost : undefined;
+  const ownExistingBillValue = isEdit && payment.work_id === watched.work_id ? Number(payment.total_bill_value) : 0;
+  const effectiveRemaining = selectedWork ? selectedWork.remaining + ownExistingBillValue : undefined;
+  const projectedRemaining = effectiveRemaining !== undefined ? effectiveRemaining - calc.totalBillValue : undefined;
   const overBudget = projectedRemaining !== undefined && projectedRemaining < 0;
   const workForMeter =
-    selectedWork && ownExistingBaseCost > 0
-      ? { ...selectedWork, utilized: selectedWork.utilized - ownExistingBaseCost, remaining: effectiveRemaining! }
+    selectedWork && ownExistingBillValue > 0
+      ? { ...selectedWork, utilized: selectedWork.utilized - ownExistingBillValue, remaining: effectiveRemaining! }
       : selectedWork;
 
   async function goToTab(target: TabKey) {
@@ -364,22 +392,45 @@ export function PaymentForm({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Contractor</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select a contractor">
-                                {(v: string) => contractors.find((c) => c.id === v)?.firm_name ?? v}
-                              </SelectValue>
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {contractors.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.firm_name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <PartyCombobox
+                            items={allContractors.map((c) => ({ id: c.id, label: c.firm_name, sublabel: c.pan_number }))}
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            placeholder="Search contractor by name..."
+                            addNewLabel="Add new contractor"
+                            renderAddDialog={({ open, onOpenChange, onCreated }) => (
+                              <ContractorFormDialog
+                                triggerLabel="Add new contractor"
+                                open={open}
+                                onOpenChange={onOpenChange}
+                                hideTrigger
+                                submitLabel="Save & Close"
+                                onCreated={(created) => {
+                                  setExtraContractors((prev) => [
+                                    ...prev,
+                                    {
+                                      id: created.id,
+                                      firm_name: created.firm_name,
+                                      pan_number: "",
+                                      gstin: null,
+                                      gst_state_code: null,
+                                      bank_name: null,
+                                      account_number: null,
+                                      ifsc_code: null,
+                                      address: null,
+                                      district: null,
+                                      state: null,
+                                      pin_code: null,
+                                      phone: null,
+                                    },
+                                  ]);
+                                  onCreated(created.id);
+                                }}
+                              />
+                            )}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -401,6 +452,10 @@ export function PaymentForm({
                           {gstTdsType === "NOT_APPLICABLE" ? "N/A - missing GSTIN or dept state code" : gstTdsType.replace("_", "-")}
                         </Badge>
                       </span>
+                      <span className="text-muted-foreground">Address</span>
+                      <span>{formatContractorAddress(selectedContractor)}</span>
+                      <span className="text-muted-foreground">Mobile</span>
+                      <span>{selectedContractor.phone ?? "-"}</span>
                     </div>
                   ) : null}
 
@@ -425,7 +480,7 @@ export function PaymentForm({
                         <FormItem>
                           <FormLabel>Agreement Date</FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} />
+                            <Input type="date" max={allowFutureDates ? undefined : todayIsoDate} {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -434,7 +489,7 @@ export function PaymentForm({
                   </div>
 
                   {selectedWork ? (
-                    <BudgetMeter work={workForMeter!} baseCost={baseCost} />
+                    <BudgetMeter work={workForMeter!} billValue={calc.totalBillValue} />
                   ) : null}
 
                   <div className="flex justify-end">
@@ -453,7 +508,7 @@ export function PaymentForm({
                         <FormItem>
                           <FormLabel>Invoice Number</FormLabel>
                           <FormControl>
-                            <Input {...field} />
+                            <Input {...field} maxLength={16} placeholder="Letters, numbers, - and / only" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -466,8 +521,23 @@ export function PaymentForm({
                         <FormItem>
                           <FormLabel>Invoice Date</FormLabel>
                           <FormControl>
-                            <Input type="date" min={watched.agreement_date || undefined} {...field} />
+                            <Input
+                              type="date"
+                              min={
+                                [watched.agreement_date, gstinRegistrationDate]
+                                  .filter((d): d is string => !!d)
+                                  .sort()
+                                  .pop()
+                              }
+                              max={allowFutureDates ? undefined : todayIsoDate}
+                              {...field}
+                            />
                           </FormControl>
+                          {gstinRegistrationDate ? (
+                            <p className="text-xs text-muted-foreground">
+                              Must be on or after the department&apos;s GSTIN registration date ({gstinRegistrationDate}).
+                            </p>
+                          ) : null}
                           <FormMessage />
                         </FormItem>
                       )}
@@ -576,7 +646,18 @@ export function PaymentForm({
                           <FormItem>
                             <FormLabel>Treasury Token / Chalan Number</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <TokenCombobox
+                                tokens={tokens}
+                                value={field.value ?? ""}
+                                onChange={field.onChange}
+                                onSelectExisting={(t) => {
+                                  field.onChange(t.token_number);
+                                  if (t.token_generated_date) {
+                                    form.setValue("token_generated_date", t.token_generated_date as never);
+                                  }
+                                }}
+                                placeholder="Type or pick a previous token"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -680,7 +761,7 @@ export function PaymentForm({
               <CardTitle className="text-base">Live Budget Meter</CardTitle>
             </CardHeader>
             <CardContent>
-              <BudgetMeter work={workForMeter!} baseCost={baseCost} compact />
+              <BudgetMeter work={workForMeter!} billValue={calc.totalBillValue} compact />
             </CardContent>
           </Card>
         ) : null}
@@ -701,10 +782,10 @@ function SummaryRow({ label, value, bold, negative, large }: { label: string; va
   );
 }
 
-function BudgetMeter({ work, baseCost, compact }: { work: WorkOption; baseCost: number; compact?: boolean }) {
+function BudgetMeter({ work, billValue, compact }: { work: WorkOption; billValue: number; compact?: boolean }) {
   const utilizedPct = work.sanctioned > 0 ? Math.min(100, (work.utilized / work.sanctioned) * 100) : 0;
-  const thisPaymentPct = work.sanctioned > 0 ? Math.min(100 - utilizedPct, Math.max(0, (baseCost / work.sanctioned) * 100)) : 0;
-  const projectedRemaining = work.remaining - baseCost;
+  const thisPaymentPct = work.sanctioned > 0 ? Math.min(100 - utilizedPct, Math.max(0, (billValue / work.sanctioned) * 100)) : 0;
+  const projectedRemaining = work.remaining - billValue;
   const overBudget = projectedRemaining < 0;
 
   return (
@@ -717,10 +798,10 @@ function BudgetMeter({ work, baseCost, compact }: { work: WorkOption; baseCost: 
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <span>Sanctioned</span>
         <span className="text-right">{formatINR(work.sanctioned)}</span>
-        <span>Already Utilized</span>
+        <span>Already Utilized (incl. GST)</span>
         <span className="text-right">{formatINR(work.utilized)}</span>
-        <span>This Payment</span>
-        <span className="text-right">{formatINR(baseCost)}</span>
+        <span>This Payment (incl. GST)</span>
+        <span className="text-right">{formatINR(billValue)}</span>
         <span className={overBudget ? "font-medium text-destructive" : "font-medium text-foreground"}>Remaining After</span>
         <span className={`text-right font-medium ${overBudget ? "text-destructive" : "text-foreground"}`}>{formatINR(projectedRemaining)}</span>
       </div>

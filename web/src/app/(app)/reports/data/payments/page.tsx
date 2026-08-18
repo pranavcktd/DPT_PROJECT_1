@@ -83,13 +83,14 @@ export default async function PaymentsReportPage(props: PageProps<"/reports/data
                 <TableHead className="text-right">Net Payable</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Invoice Date</TableHead>
-                <TableHead>Treasury Date</TableHead>
+                <TableHead>Token Generated Date</TableHead>
+                <TableHead>Reconciled Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">No payments match this filter.</TableCell>
+                  <TableCell colSpan={9} className="text-center text-muted-foreground">No payments match this filter.</TableCell>
                 </TableRow>
               ) : (
                 rows.map((p) => (
@@ -102,9 +103,10 @@ export default async function PaymentsReportPage(props: PageProps<"/reports/data
                     <TableCell><Badge variant={STATUS_VARIANT[p.status]}>{p.status}</Badge></TableCell>
                     <TableCell>{formatDateForReport(p.invoice_date)}</TableCell>
                     <TableCell className="whitespace-nowrap">
-                      {formatDateForReport(p.treasury_payment_date)}
+                      {formatDateForReport(p.token_generated_date)}
                       <EstimatedDateBadge estimated={!!p.payment_date_is_estimated} />
                     </TableCell>
+                    <TableCell className="whitespace-nowrap">{formatDateForReport(p.actual_payment_date) || "Pending"}</TableCell>
                   </TableRow>
                 ))
               )}

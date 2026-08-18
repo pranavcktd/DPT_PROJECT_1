@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchInput } from "@/components/search-input";
+import { PaginationBar } from "@/components/pagination-bar";
+import { usePagination } from "@/hooks/use-pagination";
 import { formatINR } from "@/lib/utils";
 import { SchemeFormDialog } from "./scheme-form-dialog";
 
@@ -26,6 +28,7 @@ export function SchemesTable({ schemes, can_edit }: { schemes: SchemeRow[]; can_
     if (!q) return schemes;
     return schemes.filter((s) => `${s.scheme_name} ${s.financial_year}`.toLowerCase().includes(q));
   }, [schemes, query]);
+  const paged = usePagination(filtered, 10);
 
   return (
     <div className="space-y-4">
@@ -52,7 +55,7 @@ export function SchemesTable({ schemes, can_edit }: { schemes: SchemeRow[]; can_
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((s) => {
+                paged.pageItems.map((s) => {
                   const remaining = s.sanctioned_budget - s.allocated;
                   return (
                     <TableRow key={s.id}>
@@ -91,6 +94,15 @@ export function SchemesTable({ schemes, can_edit }: { schemes: SchemeRow[]; can_
           </Table>
         </CardContent>
       </Card>
+      <PaginationBar
+        page={paged.page}
+        totalPages={paged.totalPages}
+        totalItems={paged.totalItems}
+        pageSize={paged.pageSize}
+        effectivePageSize={paged.effectivePageSize}
+        onPageChange={paged.setPage}
+        onPageSizeChange={paged.setPageSize}
+      />
     </div>
   );
 }

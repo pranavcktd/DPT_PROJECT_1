@@ -17,6 +17,8 @@ const salaryImportRowSchema = z
       .trim()
       .toUpperCase()
       .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "employee_pan must be a valid PAN matching an existing employee"),
+    payment_period_month: z.coerce.number().int().min(1).max(12),
+    payment_period_year: z.coerce.number().int().min(2000).max(2100),
     payment_type: z.enum(PAYMENT_TYPES).optional().or(z.literal("")),
     other_type_label: z.string().trim().max(100).optional().or(z.literal("")),
     gross_salary: z.coerce.number().positive("Must be greater than 0"),
@@ -91,6 +93,8 @@ export async function importSalaryPayments(_prev: ImportActionState, formData: F
           employee_id: employee.id,
           employee_name_snapshot: employee.employee_name,
           employee_pan_snapshot: employee.pan_number,
+          payment_period_month: values.payment_period_month,
+          payment_period_year: values.payment_period_year,
           payment_type: values.payment_type || "SALARY",
           other_type_label: values.payment_type === "OTHER" ? toNullable(values.other_type_label) : null,
           gross_salary: values.gross_salary,

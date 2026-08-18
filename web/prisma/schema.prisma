@@ -67,6 +67,9 @@ model contractors {
   updated_by                          BigInt?
   created_at                          DateTime                       @default(now()) @db.Timestamp(6)
   updated_at                          DateTime                       @default(now()) @db.Timestamp(6)
+  district                            String?                        @db.VarChar(100)
+  state                               String?                        @db.VarChar(100)
+  pin_code                            String?                        @db.VarChar(10)
   users_contractors_created_byTousers users?                         @relation("contractors_created_byTousers", fields: [created_by], references: [id], onUpdate: NoAction, map: "fk_contractor_created_by")
   departments                         departments                    @relation(fields: [department_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_contractor_department")
   gst_state_codes                     gst_state_codes?               @relation(fields: [gst_state_code], references: [state_code], onDelete: NoAction, onUpdate: NoAction, map: "fk_contractor_gst_state")
@@ -133,6 +136,8 @@ model departments {
   created_by                             BigInt?
   created_at                             DateTime                       @default(now()) @db.Timestamp(6)
   updated_at                             DateTime                       @default(now()) @db.Timestamp(6)
+  gstin_registration_date                DateTime?                      @db.Date
+  allow_future_payment_dates             Boolean                        @default(false)
   audit_logs                             audit_logs[]
   certificate_logs                       certificate_logs[]
   contractors                            contractors[]
@@ -142,6 +147,7 @@ model departments {
   gst_state_codes                        gst_state_codes?               @relation(fields: [state_code], references: [state_code], onDelete: NoAction, onUpdate: NoAction, map: "fk_dept_state_code")
   employees                              employees[]
   login_logs                             login_logs[]
+  notices                                notices[]
   payments                               payments[]
   salary_payments                        salary_payments[]
   schemes                                schemes[]
@@ -164,11 +170,15 @@ model employees {
   created_by      BigInt?
   created_at      DateTime           @default(now()) @db.Timestamp(6)
   updated_at      DateTime           @default(now()) @db.Timestamp(6)
+  email           String?            @db.VarChar(150)
+  designation     String?            @db.VarChar(100)
+  employee_code   String?            @db.VarChar(30)
   users           users?             @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "fk_employee_created_by")
   departments     departments        @relation(fields: [department_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_employee_department")
   salary_payments salary_payments[]
 
   @@unique([department_id, pan_number], map: "uq_employee_pan_per_dept")
+  @@unique([department_id, employee_code], map: "uq_employee_code_per_dept")
   @@index([department_id], map: "idx_employee_department")
 }
 
@@ -263,6 +273,7 @@ model payments {
   actual_payment_date               DateTime?                     @db.Date
   treasury_payment_date             DateTime?                     @default(dbgenerated("COALESCE(actual_payment_date, token_generated_date)")) @db.Date
   payment_date_is_estimated         Boolean?                      @default(dbgenerated("((pay_mode = 'TREASURY'::pay_mode_type) AND (actual_payment_date IS NULL) AND (token_generated_date IS NOT NULL))"))
+  invoice_fy_start_year             Int?                          @default(dbgenerated("\nCASE\n    WHEN (EXTRACT(month FROM invoice_date) >= (4)::numeric) THEN EXTRACT(year FROM invoice_date)\n    ELSE (EXTRACT(year FROM invoice_date) - (1)::numeric)\nEND")) @db.SmallInt
   users_payments_approved_byTousers users?                        @relation("payments_approved_byTousers", fields: [approved_by], references: [id], onUpdate: NoAction, map: "fk_payment_approved_by")
   contractors                       contractors                   @relation(fields: [contractor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payment_contractor")
   users_payments_created_byTousers  users?                        @relation("payments_created_byTousers", fields: [created_by], references: [id], onUpdate: NoAction, map: "fk_payment_created_by")
@@ -270,6 +281,7 @@ model payments {
   works                             works                         @relation(fields: [work_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payment_work")
 
   @@unique([work_id, invoice_number], map: "uq_payment_work_invoice")
+  @@unique([contractor_id, invoice_fy_start_year, invoice_number], map: "uq_payment_contractor_fy_invoice")
   @@index([contractor_id], map: "idx_payment_contractor")
   @@index([department_id], map: "idx_payment_department")
   @@index([status], map: "idx_payment_status")
@@ -311,6 +323,8 @@ model salary_payments {
   actual_payment_date       DateTime?                    @db.Date
   treasury_payment_date     DateTime?                    @default(dbgenerated("COALESCE(actual_payment_date, token_generated_date)")) @db.Date
   payment_date_is_estimated Boolean?                     @default(dbgenerated("((pay_mode = 'TREASURY'::pay_mode_type) AND (actual_payment_date IS NULL) AND (token_generated_date IS NOT NULL))"))
+  payment_period_month      Int                          @db.SmallInt
+  payment_period_year       Int                          @db.SmallInt
   users                     users?                       @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "fk_salpay_created_by")
   departments               departments                  @relation(fields: [department_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_salpay_department")
   employees                 employees                    @relation(fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_salpay_employee")
@@ -395,6 +409,7 @@ model users {
   departments_departments_created_byTousers    departments[]                  @relation("departments_created_byTousers")
   employees                                    employees[]
   login_logs                                   login_logs[]
+  notices                                      notices[]
   payments_payments_approved_byTousers         payments[]                     @relation("payments_approved_byTousers")
   payments_payments_created_byTousers          payments[]                     @relation("payments_created_byTousers")
   salary_payments                              salary_payments[]
@@ -456,6 +471,25 @@ model works {
 
   @@index([department_id], map: "idx_work_department")
   @@index([scheme_id], map: "idx_work_scheme")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model notices {
+  id            BigInt       @id @default(autoincrement())
+  title         String       @db.VarChar(200)
+  message       String       @db.VarChar(1000)
+  department_id BigInt?
+  starts_at     DateTime?    @db.Date
+  expires_at    DateTime?    @db.Date
+  is_active     Boolean      @default(true)
+  created_by    BigInt
+  created_at    DateTime     @default(now()) @db.Timestamp(6)
+  updated_at    DateTime     @default(now()) @db.Timestamp(6)
+  users         users        @relation(fields: [created_by], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_notice_created_by")
+  departments   departments? @relation(fields: [department_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_notice_department")
+
+  @@index([is_active], map: "idx_notice_active")
+  @@index([department_id], map: "idx_notice_department")
 }
 
 enum audit_logs_action {
@@ -538,6 +572,8 @@ enum salary_payments_payment_type {
   ARREAR
   MEDICAL_REIMBURSEMENT
   OTHER
+  SALARY_ARREAR
+  DA_ARREAR
 }
 
 enum schemes_status {

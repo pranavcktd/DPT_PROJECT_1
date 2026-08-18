@@ -12,6 +12,7 @@ export const departmentProfileSchema = z.object({
     .regex(/^[0-9]{2}[A-Z0-9]{13}$/, "GSTIN must be 15 characters, starting with a 2-digit state code")
     .optional()
     .or(z.literal("")),
+  gstin_registration_date: z.string().optional().or(z.literal("")),
   pan: z
     .string()
     .trim()

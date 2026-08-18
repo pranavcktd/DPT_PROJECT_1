@@ -3,6 +3,8 @@ import { toCsv } from "@/lib/reports";
 
 const COLUMNS = [
   "employee_pan",
+  "payment_period_month",
+  "payment_period_year",
   "payment_type",
   "other_type_label",
   "gross_salary",
@@ -24,8 +26,8 @@ export async function GET() {
   }
 
   const csv = toCsv(COLUMNS, [
-    ["ABCPT1234E", "SALARY", "", "50000", "5000", "TREASURY", "TKN-001", "2026-08-10", "", ""],
-    ["ABCPT1234E", "OTHER", "Festival Bonus", "10000", "0", "TREASURY", "TKN-002", "2026-08-10", "", ""],
+    ["ABCPT1234E", "7", "2026", "SALARY", "", "50000", "5000", "TREASURY", "TKN-001", "2026-08-10", "", ""],
+    ["ABCPT1234E", "7", "2026", "OTHER", "Festival Bonus", "10000", "0", "TREASURY", "TKN-002", "2026-08-10", "", ""],
   ]);
 
   return new Response(csv, {

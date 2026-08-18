@@ -30,6 +30,7 @@ export default async function DepartmentProfilePage() {
           district: department.district ?? "",
           state: department.state ?? "",
           gstin: department.gstin ?? "",
+          gstin_registration_date: department.gstin_registration_date?.toISOString().slice(0, 10) ?? "",
           pan: department.pan ?? "",
           tan: department.tan ?? "",
           official_email: department.official_email ?? "",

@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchInput } from "@/components/search-input";
+import { PaginationBar } from "@/components/pagination-bar";
+import { usePagination } from "@/hooks/use-pagination";
 import { formatINR } from "@/lib/utils";
 import { WorkFormDialog } from "./work-form-dialog";
 
@@ -35,6 +37,7 @@ export function WorksTable({ works, schemeOptions, can_edit }: { works: WorkRow[
     if (!q) return works;
     return works.filter((w) => `${w.work_name} ${w.scheme_name}`.toLowerCase().includes(q));
   }, [works, query]);
+  const paged = usePagination(filtered, 10);
 
   return (
     <div className="space-y-4">
@@ -59,7 +62,7 @@ export function WorksTable({ works, schemeOptions, can_edit }: { works: WorkRow[
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((w) => (
+                paged.pageItems.map((w) => (
                   <TableRow key={w.id}>
                     <TableCell className="font-medium">{w.work_name}</TableCell>
                     <TableCell>{w.scheme_name}</TableCell>
@@ -93,6 +96,15 @@ export function WorksTable({ works, schemeOptions, can_edit }: { works: WorkRow[
           </Table>
         </CardContent>
       </Card>
+      <PaginationBar
+        page={paged.page}
+        totalPages={paged.totalPages}
+        totalItems={paged.totalItems}
+        pageSize={paged.pageSize}
+        effectivePageSize={paged.effectivePageSize}
+        onPageChange={paged.setPage}
+        onPageSizeChange={paged.setPageSize}
+      />
     </div>
   );
 }

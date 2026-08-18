@@ -8,7 +8,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { contractorFormSchema, type ContractorFormValues } from "./schema";
 import { uniqueConstraintFields } from "@/lib/prisma-errors";
 
-export type ActionState = { error: string | null; success?: boolean };
+export type ActionState = { error: string | null; success?: boolean; contractorId?: string };
 
 function toNullable(value: string | undefined): string | null {
   return value && value.length > 0 ? value : null;
@@ -21,6 +21,9 @@ function buildData(values: ContractorFormValues) {
     pan_number: values.pan_number,
     gstin: toNullable(values.gstin),
     address: toNullable(values.address),
+    district: toNullable(values.district),
+    state: toNullable(values.state),
+    pin_code: toNullable(values.pin_code),
     contact_person: toNullable(values.contact_person),
     phone: toNullable(values.phone),
     email: toNullable(values.email),
@@ -69,13 +72,13 @@ export async function createContractor(_prev: ActionState, formData: FormData): 
       action: "CREATE",
       newData: contractor,
     });
+
+    revalidatePath("/contractors");
+    return { error: null, success: true, contractorId: contractor.id.toString() };
   } catch (error) {
     const message = friendlyErrorFor(error, parsed.data);
     return { error: message };
   }
-
-  revalidatePath("/contractors");
-  return { error: null, success: true };
 }
 
 export async function updateContractor(

@@ -26,6 +26,8 @@ export async function get24qReportRows(
       employee_pan_snapshot: true,
       gross_salary: true,
       it_deduction_amount: true,
+      token_generated_date: true,
+      actual_payment_date: true,
       treasury_payment_date: true,
       payment_date_is_estimated: true,
     },

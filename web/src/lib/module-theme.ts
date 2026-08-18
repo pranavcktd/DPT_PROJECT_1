@@ -16,6 +16,7 @@ import {
   IdCard,
   Landmark,
   FileCheck2,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 
@@ -36,7 +37,8 @@ export type ModuleKey =
   | "auditLogs"
   | "partyMaster"
   | "otherPayments"
-  | "reconciliation";
+  | "reconciliation"
+  | "notices";
 
 export const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -56,6 +58,7 @@ export const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   partyMaster: IdCard,
   otherPayments: Landmark,
   reconciliation: FileCheck2,
+  notices: Megaphone,
 };
 
 /**
@@ -235,5 +238,14 @@ export const MODULE_THEME: Record<
     accentBar: "bg-yellow-500",
     accentBox: "bg-yellow-600",
     text: "text-yellow-700",
+  },
+  notices: {
+    badge: "bg-red-100 text-red-700",
+    navActive: "bg-red-600 text-white",
+    button: "bg-red-600 text-white hover:bg-red-700",
+    pill: "bg-red-50 text-red-700 border-red-200",
+    accentBar: "bg-red-500",
+    accentBox: "bg-red-600",
+    text: "text-red-700",
   },
 };

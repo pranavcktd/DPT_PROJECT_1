@@ -9,8 +9,9 @@ import { SendEmailDialog } from "@/components/send-email-dialog";
 import { EstimatedDateBadge } from "@/components/estimated-date-badge";
 import { requireModulePermission } from "@/lib/session";
 import { formatDateForReport } from "@/lib/reports";
-import { formatEnumLabel, formatINR } from "@/lib/utils";
+import { formatINR } from "@/lib/utils";
 import { emailReportCsv } from "@/app/(app)/reports/email-actions";
+import { PAYMENT_TYPE_LABELS } from "@/app/(app)/salary-payments/schema";
 import { getSalaryPaymentsReportRows, type SalaryPaymentStatusFilter } from "./data";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = {
@@ -82,27 +83,29 @@ export default async function SalaryPaymentsReportPage(props: PageProps<"/report
                 <TableHead className="text-right">IT Deduction</TableHead>
                 <TableHead className="text-right">Net Payable</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Payment Date</TableHead>
+                <TableHead>Token Generated Date</TableHead>
+                <TableHead>Reconciled Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">No salary payments match this filter.</TableCell>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">No salary payments match this filter.</TableCell>
                 </TableRow>
               ) : (
                 rows.map((p) => (
                   <TableRow key={p.id.toString()}>
                     <TableCell className="font-medium">{p.employee_name_snapshot}</TableCell>
-                    <TableCell>{p.payment_type === "OTHER" ? p.other_type_label : formatEnumLabel(p.payment_type)}</TableCell>
+                    <TableCell>{p.payment_type === "OTHER" ? p.other_type_label : PAYMENT_TYPE_LABELS[p.payment_type]}</TableCell>
                     <TableCell className="text-right">{formatINR(Number(p.gross_salary))}</TableCell>
                     <TableCell className="text-right">{formatINR(Number(p.it_deduction_amount))}</TableCell>
                     <TableCell className="text-right">{formatINR(Number(p.net_payable_amount ?? 0))}</TableCell>
                     <TableCell><Badge variant={STATUS_VARIANT[p.status]}>{p.status}</Badge></TableCell>
                     <TableCell className="whitespace-nowrap">
-                      {formatDateForReport(p.treasury_payment_date)}
+                      {formatDateForReport(p.token_generated_date)}
                       <EstimatedDateBadge estimated={!!p.payment_date_is_estimated} />
                     </TableCell>
+                    <TableCell className="whitespace-nowrap">{formatDateForReport(p.actual_payment_date) || "Pending"}</TableCell>
                   </TableRow>
                 ))
               )}

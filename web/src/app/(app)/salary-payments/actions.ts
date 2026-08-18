@@ -26,6 +26,8 @@ function toNullable(value?: string): string | null {
 
 function buildData(values: SalaryPaymentFormValues) {
   return {
+    payment_period_month: values.payment_period_month,
+    payment_period_year: values.payment_period_year,
     payment_type: values.payment_type,
     other_type_label: values.payment_type === "OTHER" ? toNullable(values.other_type_label) : null,
     gross_salary: values.gross_salary,

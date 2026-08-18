@@ -5,6 +5,7 @@ import { requireDepartmentUser, requireModulePermission } from "@/lib/session";
 import { sendMail, SmtpNotConfiguredError } from "@/lib/mail";
 import { formatDateForReport, formatDateForReport as fmtDate, toCsv } from "@/lib/reports";
 import { formatEnumLabel } from "@/lib/utils";
+import { PAYMENT_TYPE_LABELS } from "@/app/(app)/salary-payments/schema";
 import type { SendEmailActionState } from "@/components/send-email-dialog";
 import { getContractorsReportRows } from "./data/contractors/data";
 import { getSchemesReportRows } from "./data/schemes/data";
@@ -54,8 +55,8 @@ async function buildReport(reportType: string, params: Record<string, string>, d
       return {
         filename: "non-salary-payments-report.csv",
         csv: toCsv(
-          ["Invoice Number", "Contractor", "Work", "Base Cost", "Net Payable", "Status", "Invoice Date", "Treasury Date"],
-          rows.map((p) => [p.invoice_number, p.contractor_name_snapshot, p.work_name_snapshot, Number(p.base_cost), Number(p.net_payable_amount ?? 0), p.status, fmtDate(p.invoice_date), fmtDate(p.treasury_payment_date)]),
+          ["Invoice Number", "Contractor", "Work", "Base Cost", "Net Payable", "Status", "Invoice Date", "Token Generated Date", "Reconciled Date"],
+          rows.map((p) => [p.invoice_number, p.contractor_name_snapshot, p.work_name_snapshot, Number(p.base_cost), Number(p.net_payable_amount ?? 0), p.status, fmtDate(p.invoice_date), fmtDate(p.token_generated_date), fmtDate(p.actual_payment_date)]),
         ),
       };
     }
@@ -65,8 +66,8 @@ async function buildReport(reportType: string, params: Record<string, string>, d
       return {
         filename: "salary-payments-report.csv",
         csv: toCsv(
-          ["Employee", "Payment Type", "Gross Salary", "IT Deduction", "Net Payable", "Status", "Payment Date"],
-          rows.map((p) => [p.employee_name_snapshot, p.payment_type === "OTHER" ? p.other_type_label : formatEnumLabel(p.payment_type), Number(p.gross_salary), Number(p.it_deduction_amount), Number(p.net_payable_amount ?? 0), p.status, fmtDate(p.treasury_payment_date)]),
+          ["Employee", "Payment Type", "Gross Salary", "IT Deduction", "Net Payable", "Status", "Token Generated Date", "Reconciled Date"],
+          rows.map((p) => [p.employee_name_snapshot, p.payment_type === "OTHER" ? p.other_type_label : PAYMENT_TYPE_LABELS[p.payment_type], Number(p.gross_salary), Number(p.it_deduction_amount), Number(p.net_payable_amount ?? 0), p.status, fmtDate(p.token_generated_date), fmtDate(p.actual_payment_date)]),
         ),
       };
     }
@@ -96,7 +97,7 @@ async function buildReport(reportType: string, params: Record<string, string>, d
       const rows = await getTdsReportRows(departmentId, fy, quarter, params.contractor || undefined);
       return {
         filename: `TDS-26Q-${fy}-Q${quarter}.csv`,
-        csv: toCsv(["Contractor / Party Name", "PAN", "Base Cost (A)", "Total IT TDS Deducted", "Payment Date"], rows.map((r) => [r.contractor_name_snapshot, r.contractor_pan_snapshot, Number(r.base_cost), Number(r.it_tds_amount ?? 0), fmtDate(r.treasury_payment_date)])),
+        csv: toCsv(["Contractor / Party Name", "PAN", "Base Cost (A)", "Total IT TDS Deducted", "Token Generated Date", "Reconciled Date"], rows.map((r) => [r.contractor_name_snapshot, r.contractor_pan_snapshot, Number(r.base_cost), Number(r.it_tds_amount ?? 0), fmtDate(r.token_generated_date), fmtDate(r.actual_payment_date)])),
       };
     }
     case "gstr7": {
@@ -107,8 +108,8 @@ async function buildReport(reportType: string, params: Record<string, string>, d
       return {
         filename: `GSTR7-${year}-${String(month).padStart(2, "0")}.csv`,
         csv: toCsv(
-          ["Contractor Name", "GSTIN", "Invoice No.", "Invoice Date", "Payment Date", "Total Bill Value (C)", "Mobile Number", "Base Cost (A)", "IGST", "CGST", "SGST"],
-          rows.map((r) => [r.contractor_name_snapshot, r.contractor_gstin_snapshot, r.invoice_number, fmtDate(r.invoice_date), fmtDate(r.treasury_payment_date), Number(r.total_bill_value ?? 0), r.contractors.phone, Number(r.base_cost), Number(r.igst_tds_amount ?? 0), Number(r.cgst_tds_amount ?? 0), Number(r.sgst_tds_amount ?? 0)]),
+          ["Contractor Name", "GSTIN", "Invoice No.", "Invoice Date", "Token Generated Date", "Reconciled Date", "Total Bill Value (C)", "Mobile Number", "Base Cost (A)", "IGST", "CGST", "SGST"],
+          rows.map((r) => [r.contractor_name_snapshot, r.contractor_gstin_snapshot, r.invoice_number, fmtDate(r.invoice_date), fmtDate(r.token_generated_date), fmtDate(r.actual_payment_date), Number(r.total_bill_value ?? 0), r.contractors.phone, Number(r.base_cost), Number(r.igst_tds_amount ?? 0), Number(r.cgst_tds_amount ?? 0), Number(r.sgst_tds_amount ?? 0)]),
         ),
       };
     }
@@ -119,7 +120,7 @@ async function buildReport(reportType: string, params: Record<string, string>, d
       const rows = await get24qReportRows(departmentId, fy, quarter, params.employee || undefined);
       return {
         filename: `TDS-24Q-${fy}-Q${quarter}.csv`,
-        csv: toCsv(["Employee Name", "PAN", "Gross Salary", "Total IT TDS Deducted", "Payment Date"], rows.map((r) => [r.employee_name_snapshot, r.employee_pan_snapshot, Number(r.gross_salary), Number(r.it_deduction_amount ?? 0), formatDateForReport(r.treasury_payment_date)])),
+        csv: toCsv(["Employee Name", "PAN", "Gross Salary", "Total IT TDS Deducted", "Token Generated Date", "Reconciled Date"], rows.map((r) => [r.employee_name_snapshot, r.employee_pan_snapshot, Number(r.gross_salary), Number(r.it_deduction_amount ?? 0), formatDateForReport(r.token_generated_date), formatDateForReport(r.actual_payment_date)])),
       };
     }
     default:

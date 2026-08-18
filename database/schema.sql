@@ -38,7 +38,7 @@ CREATE TYPE payments_stamp_duty_type AS ENUM ('PERCENTAGE','FIXED_AMOUNT','NOT_A
 CREATE TYPE payments_other_deduction_type AS ENUM ('PERCENTAGE','FIXED_AMOUNT','NOT_APPLICABLE');
 CREATE TYPE payments_status AS ENUM ('SAVED','APPROVED','CANCELLED');
 CREATE TYPE pay_mode_type AS ENUM ('TREASURY','OTHER_THAN_TREASURY');  -- shared by payments and salary_payments
-CREATE TYPE salary_payments_payment_type AS ENUM ('SALARY','DA','ARREAR','MEDICAL_REIMBURSEMENT','OTHER');
+CREATE TYPE salary_payments_payment_type AS ENUM ('SALARY','DA','ARREAR','MEDICAL_REIMBURSEMENT','OTHER','SALARY_ARREAR','DA_ARREAR');
 CREATE TYPE certificate_logs_certificate_type AS ENUM ('PAYMENT_CERTIFICATE','WORK_EXPERIENCE_CERTIFICATE','TAX_LEDGER_REPORT');
 CREATE TYPE certificate_logs_file_format AS ENUM ('PDF','EXCEL','CSV');
 CREATE TYPE audit_logs_action AS ENUM ('CREATE','UPDATE','DELETE');
@@ -83,12 +83,14 @@ CREATE TABLE departments (
   state               VARCHAR(100) NULL,
   gstin               CHAR(15)     NULL UNIQUE,
   state_code          CHAR(2) GENERATED ALWAYS AS (LEFT(gstin, 2)) STORED,  -- derived from GSTIN, same pattern as contractors.gst_state_code - avoids the state/state_code/gstin drifting out of sync
+  gstin_registration_date DATE NULL,   -- invoice_date on payments must be >= this (see trg_payments_before_*_date_check)
   pan                 CHAR(10)     NULL UNIQUE,
   tan                 VARCHAR(10)  NULL,
   official_email      VARCHAR(150) NULL UNIQUE,   -- also the login email for the auto-created Department Admin account (Super Admin onboarding)
   contact_number      VARCHAR(20)  NULL,
   logo_path           VARCHAR(255) NULL,
   status              departments_status NOT NULL DEFAULT 'ACTIVE',   -- Super Admin's Disable/Enable toggle
+  allow_future_payment_dates BOOLEAN NOT NULL DEFAULT FALSE,   -- Super-Admin-only override; see trg_payments_before_*_date_check
   subscription_amount     DECIMAL(12,2) NULL,
   subscription_start_date DATE NULL,
   subscription_days       INTEGER NULL,
@@ -183,7 +185,10 @@ CREATE TABLE contractors (
   pan_number          CHAR(10)     NOT NULL,
   gstin               CHAR(15)     NULL,
   gst_state_code      CHAR(2) GENERATED ALWAYS AS (LEFT(gstin, 2)) STORED,  -- derived, used for intra/inter-state GST TDS split
-  address             VARCHAR(255) NULL,
+  address             VARCHAR(255) NULL,   -- street-line only; district/state/pin_code are separate columns below
+  district            VARCHAR(100) NULL,
+  state               VARCHAR(100) NULL,
+  pin_code            VARCHAR(10)  NULL,
   contact_person      VARCHAR(150) NULL,
   phone               VARCHAR(20)  NULL,
   email               VARCHAR(150) NULL,
@@ -272,6 +277,13 @@ CREATE TABLE payments (
   -- Part 2: invoice & base cost
   invoice_number   VARCHAR(50) NOT NULL,
   invoice_date     DATE NOT NULL,
+  -- Indian financial year (Apr-Mar) start year derived from invoice_date, used
+  -- only to scope uq_payment_contractor_fy_invoice below - a contractor's
+  -- invoice number must be unique within one FY, not globally.
+  invoice_fy_start_year SMALLINT GENERATED ALWAYS AS (
+    CASE WHEN EXTRACT(MONTH FROM invoice_date) >= 4
+         THEN EXTRACT(YEAR FROM invoice_date) ELSE EXTRACT(YEAR FROM invoice_date) - 1 END
+  ) STORED,
   base_cost        DECIMAL(15,2) NOT NULL,                              -- (A)
 
   -- GST payable
@@ -400,7 +412,12 @@ CREATE TABLE payments (
   CONSTRAINT chk_payment_actual_after_invoice CHECK (actual_payment_date IS NULL OR actual_payment_date >= invoice_date),
   CONSTRAINT chk_payment_actual_after_token CHECK (actual_payment_date IS NULL OR token_generated_date IS NULL OR actual_payment_date >= token_generated_date),
 
-  CONSTRAINT uq_payment_work_invoice UNIQUE (work_id, invoice_number)
+  -- Invoice number format: max 16 chars, letters/digits/hyphen/slash only.
+  CONSTRAINT chk_payment_invoice_number_format CHECK (invoice_number ~ '^[A-Za-z0-9\-/]{1,16}$'),
+
+  CONSTRAINT uq_payment_work_invoice UNIQUE (work_id, invoice_number),
+  -- A contractor cannot reuse the same invoice number within one financial year.
+  CONSTRAINT uq_payment_contractor_fy_invoice UNIQUE (contractor_id, invoice_fy_start_year, invoice_number)
 );
 CREATE INDEX idx_payment_department ON payments (department_id);
 CREATE INDEX idx_payment_work ON payments (work_id);
@@ -419,6 +436,9 @@ CREATE TABLE employees (
   department_id   BIGINT NOT NULL,
   employee_name   VARCHAR(150) NOT NULL,
   pan_number      CHAR(10) NOT NULL,
+  email           VARCHAR(150) NULL,
+  designation     VARCHAR(100) NULL,
+  employee_code   VARCHAR(30) NULL,     -- human-readable employee ID, distinct from the internal bigint PK
   dob             DATE NULL,
   mobile          VARCHAR(20) NULL,
   joining_date    DATE NULL,      -- joining this department
@@ -429,7 +449,8 @@ CREATE TABLE employees (
   updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_employee_department FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
   CONSTRAINT fk_employee_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-  CONSTRAINT uq_employee_pan_per_dept UNIQUE (department_id, pan_number)
+  CONSTRAINT uq_employee_pan_per_dept UNIQUE (department_id, pan_number),
+  CONSTRAINT uq_employee_code_per_dept UNIQUE (department_id, employee_code)
 );
 CREATE INDEX idx_employee_department ON employees (department_id);
 
@@ -441,6 +462,11 @@ CREATE TABLE salary_payments (
   employee_pan_snapshot   CHAR(10) NULL,
   payment_type            salary_payments_payment_type NOT NULL DEFAULT 'SALARY',
   other_type_label        VARCHAR(100) NULL,               -- only used when payment_type = OTHER
+  -- which month's salary/payroll this entry is for (independent of when the
+  -- treasury actually pays it) - lets preparers and Super Admin see at a
+  -- glance which period a given entry covers.
+  payment_period_month    SMALLINT NOT NULL,
+  payment_period_year     SMALLINT NOT NULL,
   gross_salary            DECIMAL(15,2) NOT NULL,
   it_deduction_amount     DECIMAL(15,2) NOT NULL DEFAULT 0,
   net_payable_amount      DECIMAL(15,2) GENERATED ALWAYS AS (gross_salary - it_deduction_amount) STORED,
@@ -464,7 +490,9 @@ CREATE TABLE salary_payments (
   CONSTRAINT fk_salpay_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
   CONSTRAINT chk_salpay_gross_salary CHECK (gross_salary > 0),
   CONSTRAINT chk_salpay_it_deduction CHECK (it_deduction_amount >= 0),
-  CONSTRAINT chk_salpay_actual_after_token CHECK (actual_payment_date IS NULL OR token_generated_date IS NULL OR actual_payment_date >= token_generated_date)
+  CONSTRAINT chk_salpay_actual_after_token CHECK (actual_payment_date IS NULL OR token_generated_date IS NULL OR actual_payment_date >= token_generated_date),
+  CONSTRAINT chk_salpay_period_month CHECK (payment_period_month BETWEEN 1 AND 12),
+  CONSTRAINT chk_salpay_period_year CHECK (payment_period_year BETWEEN 2000 AND 2100)
 );
 CREATE INDEX idx_salpay_department ON salary_payments (department_id);
 CREATE INDEX idx_salpay_employee ON salary_payments (employee_id);
@@ -576,6 +604,30 @@ CREATE INDEX idx_loginlog_user ON login_logs (user_id);
 CREATE INDEX idx_loginlog_login_at ON login_logs (login_at);
 
 -- ============================================================================
+-- SECTION 7B: NOTICES (Super-Admin-authored announcements shown to department
+-- users, e.g. TDS/GSTR-7 filing deadline reminders). department_id NULL means
+-- broadcast to every department.
+-- ============================================================================
+
+CREATE TABLE notices (
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  title         VARCHAR(200) NOT NULL,
+  message       VARCHAR(1000) NOT NULL,
+  department_id BIGINT NULL,
+  starts_at     DATE NULL,
+  expires_at    DATE NULL,
+  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by    BIGINT NOT NULL,
+  created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_notice_department FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
+  CONSTRAINT fk_notice_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT chk_notice_dates CHECK (starts_at IS NULL OR expires_at IS NULL OR expires_at >= starts_at)
+);
+CREATE INDEX idx_notice_department ON notices (department_id);
+CREATE INDEX idx_notice_active ON notices (is_active);
+
+-- ============================================================================
 -- SECTION 8: TRIGGERS
 --   a) set_updated_at() - Postgres has no `ON UPDATE CURRENT_TIMESTAMP`
 --      column option, so every table with `updated_at` gets this trigger.
@@ -603,6 +655,7 @@ CREATE TRIGGER trg_works_updated_at BEFORE UPDATE ON works FOR EACH ROW EXECUTE 
 CREATE TRIGGER trg_payments_updated_at BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_employees_updated_at BEFORE UPDATE ON employees FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_salary_payments_updated_at BEFORE UPDATE ON salary_payments FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_notices_updated_at BEFORE UPDATE ON notices FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE FUNCTION trg_works_before_insert_budget_check() RETURNS TRIGGER AS $$
 DECLARE
@@ -646,20 +699,23 @@ CREATE TRIGGER trg_works_before_update_budget_check
 BEFORE UPDATE ON works
 FOR EACH ROW EXECUTE FUNCTION trg_works_before_update_budget_check();
 
+-- Budget ceiling is GST-inclusive: total_bill_value (base cost + GST), not
+-- just base cost, is what's checked against and accumulated against the
+-- work's sanctioned_cost - matches the "Live Budget Meter" in the UI.
 CREATE FUNCTION trg_payments_before_insert_budget_check() RETURNS TRIGGER AS $$
 DECLARE
   v_work_budget DECIMAL(15,2);
   v_utilized DECIMAL(15,2);
 BEGIN
   SELECT sanctioned_cost INTO v_work_budget FROM works WHERE id = NEW.work_id;
-  SELECT COALESCE(SUM(base_cost), 0) INTO v_utilized
+  SELECT COALESCE(SUM(total_bill_value), 0) INTO v_utilized
     FROM payments WHERE work_id = NEW.work_id AND status <> 'CANCELLED';
 
-  IF (v_utilized + NEW.base_cost) > v_work_budget THEN
+  IF (v_utilized + NEW.total_bill_value) > v_work_budget THEN
     RAISE EXCEPTION 'Invoice base cost exceeds remaining work order budget.';
   END IF;
 
-  NEW.cumulative_gross_amount_till_date := v_utilized + NEW.base_cost;
+  NEW.cumulative_gross_amount_till_date := v_utilized + NEW.total_bill_value;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -673,16 +729,16 @@ DECLARE
   v_work_budget DECIMAL(15,2);
   v_utilized DECIMAL(15,2);
 BEGIN
-  IF NEW.base_cost <> OLD.base_cost OR NEW.status <> OLD.status THEN
+  IF NEW.total_bill_value <> OLD.total_bill_value OR NEW.status <> OLD.status THEN
     SELECT sanctioned_cost INTO v_work_budget FROM works WHERE id = NEW.work_id;
-    SELECT COALESCE(SUM(base_cost), 0) INTO v_utilized
+    SELECT COALESCE(SUM(total_bill_value), 0) INTO v_utilized
       FROM payments WHERE work_id = NEW.work_id AND status <> 'CANCELLED' AND id <> NEW.id;
 
-    IF NEW.status <> 'CANCELLED' AND (v_utilized + NEW.base_cost) > v_work_budget THEN
+    IF NEW.status <> 'CANCELLED' AND (v_utilized + NEW.total_bill_value) > v_work_budget THEN
       RAISE EXCEPTION 'Invoice base cost exceeds remaining work order budget.';
     END IF;
 
-    NEW.cumulative_gross_amount_till_date := v_utilized + CASE WHEN NEW.status = 'CANCELLED' THEN 0 ELSE NEW.base_cost END;
+    NEW.cumulative_gross_amount_till_date := v_utilized + CASE WHEN NEW.status = 'CANCELLED' THEN 0 ELSE NEW.total_bill_value END;
   END IF;
   RETURN NEW;
 END;
@@ -691,6 +747,48 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_payments_before_update_budget_check
 BEFORE UPDATE ON payments
 FOR EACH ROW EXECUTE FUNCTION trg_payments_before_update_budget_check();
+
+-- Cross-table date guardrails (can't be plain CHECK constraints - they read
+-- departments). Enforces:
+--   invoice_date >= departments.gstin_registration_date (when set)
+--   agreement_date_snapshot / invoice_date <= CURRENT_DATE, unless the
+--     department's allow_future_payment_dates override is on.
+-- token_generated_date and actual_payment_date are deliberately exempt - the
+-- treasury may legitimately generate a token after entry, and reconciliation
+-- always trails the actual event.
+CREATE FUNCTION trg_payments_before_date_check() RETURNS TRIGGER AS $$
+DECLARE
+  v_gstin_registration_date DATE;
+  v_allow_future BOOLEAN;
+BEGIN
+  SELECT gstin_registration_date, allow_future_payment_dates
+    INTO v_gstin_registration_date, v_allow_future
+    FROM departments WHERE id = NEW.department_id;
+
+  IF v_gstin_registration_date IS NOT NULL AND NEW.invoice_date < v_gstin_registration_date THEN
+    RAISE EXCEPTION 'Invoice date cannot be before the department''s GSTIN registration date.';
+  END IF;
+
+  IF NOT COALESCE(v_allow_future, FALSE) THEN
+    IF NEW.agreement_date_snapshot > CURRENT_DATE THEN
+      RAISE EXCEPTION 'Agreement date cannot be in the future.';
+    END IF;
+    IF NEW.invoice_date > CURRENT_DATE THEN
+      RAISE EXCEPTION 'Invoice date cannot be in the future.';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_payments_before_insert_date_check
+BEFORE INSERT ON payments
+FOR EACH ROW EXECUTE FUNCTION trg_payments_before_date_check();
+
+CREATE TRIGGER trg_payments_before_update_date_check
+BEFORE UPDATE ON payments
+FOR EACH ROW EXECUTE FUNCTION trg_payments_before_date_check();
 
 -- ============================================================================
 -- SECTION 9: REPORTING VIEWS (direct-SQL/BI use; the app computes these via
@@ -717,8 +815,8 @@ SELECT
   w.scheme_id,
   w.work_name,
   w.sanctioned_cost,
-  COALESCE(SUM(p.base_cost), 0) AS utilized_amount,
-  w.sanctioned_cost - COALESCE(SUM(p.base_cost), 0) AS remaining_balance
+  COALESCE(SUM(p.total_bill_value), 0) AS utilized_amount,
+  w.sanctioned_cost - COALESCE(SUM(p.total_bill_value), 0) AS remaining_balance
 FROM works w
 LEFT JOIN payments p ON p.work_id = w.id AND p.status <> 'CANCELLED'
 GROUP BY w.id, w.department_id, w.scheme_id, w.work_name, w.sanctioned_cost;

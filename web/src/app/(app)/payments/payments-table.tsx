@@ -7,6 +7,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchInput } from "@/components/search-input";
+import { PaginationBar } from "@/components/pagination-bar";
+import { usePagination } from "@/hooks/use-pagination";
 import { SendEmailDialog } from "@/components/send-email-dialog";
 import { formatINR } from "@/lib/utils";
 import { CancelPaymentDialog } from "./cancel-payment-dialog";
@@ -49,6 +51,7 @@ export function PaymentsTable({
     if (!q) return payments;
     return payments.filter((p) => `${p.invoice_number} ${p.contractor_name_snapshot} ${p.work_name}`.toLowerCase().includes(q));
   }, [payments, query]);
+  const paged = usePagination(filtered, 10);
 
   return (
     <div className="space-y-4">
@@ -76,7 +79,7 @@ export function PaymentsTable({
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((p) => {
+                paged.pageItems.map((p) => {
                   const canModify = p.status === "SAVED";
                   return (
                     <TableRow key={p.id}>
@@ -128,6 +131,15 @@ export function PaymentsTable({
           </Table>
         </CardContent>
       </Card>
+      <PaginationBar
+        page={paged.page}
+        totalPages={paged.totalPages}
+        totalItems={paged.totalItems}
+        pageSize={paged.pageSize}
+        effectivePageSize={paged.effectivePageSize}
+        onPageChange={paged.setPage}
+        onPageSizeChange={paged.setPageSize}
+      />
     </div>
   );
 }

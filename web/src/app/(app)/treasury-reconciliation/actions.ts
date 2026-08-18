@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requireModulePermission } from "@/lib/session";
 import { writeAuditLog } from "@/lib/audit";
 
-export type ActionState = { error: string | null; success?: boolean };
+export type ActionState = { error: string | null; success?: boolean; updatedCount?: number };
 
 export async function setPaymentActualDate(paymentId: string, date: string): Promise<ActionState> {
   const user = await requireModulePermission("PAYMENT_ENTRY", "edit");
@@ -23,25 +23,52 @@ export async function setPaymentActualDate(paymentId: string, date: string): Pro
     return { error: "The actual payment date cannot be before the token generated date." };
   }
 
-  const updated = await db.payments.update({
-    where: { id },
-    data: { actual_payment_date: new Date(date) },
+  // A treasury token often bundles multiple bills under one challan - enter
+  // the reconciled date once and it auto-applies to every payment sharing
+  // that same token number, so it doesn't need to be re-entered per bill.
+  const siblings = existing.treasury_token_number
+    ? await db.payments.findMany({
+        where: { department_id: departmentId, pay_mode: "TREASURY", treasury_token_number: existing.treasury_token_number },
+      })
+    : [existing];
+
+  const latestInvoiceDate = siblings.reduce<string | null>((max, s) => {
+    const d = s.invoice_date.toISOString().slice(0, 10);
+    return !max || d > max ? d : max;
+  }, null);
+  if (latestInvoiceDate && date < latestInvoiceDate) {
+    return {
+      error: `Another bill on this same token has an invoice date of ${latestInvoiceDate} - the actual payment date can't be before it.`,
+    };
+  }
+
+  const newDate = new Date(date);
+  await db.payments.updateMany({
+    where: { id: { in: siblings.map((s) => s.id) } },
+    data: { actual_payment_date: newDate },
   });
 
-  await writeAuditLog({
-    departmentId,
-    performedBy: BigInt(user.id),
-    tableName: "payments",
-    recordId: id,
-    action: "UPDATE",
-    oldData: { actual_payment_date: existing.actual_payment_date },
-    newData: { actual_payment_date: updated.actual_payment_date },
-    reason: "Treasury reconciliation - actual payment date entered",
-  });
+  await Promise.all(
+    siblings.map((s) =>
+      writeAuditLog({
+        departmentId,
+        performedBy: BigInt(user.id),
+        tableName: "payments",
+        recordId: s.id,
+        action: "UPDATE",
+        oldData: { actual_payment_date: s.actual_payment_date },
+        newData: { actual_payment_date: newDate },
+        reason:
+          s.id === id
+            ? "Treasury reconciliation - actual payment date entered"
+            : `Treasury reconciliation - auto-applied from token "${existing.treasury_token_number}" (same token as payment #${id})`,
+      }),
+    ),
+  );
 
   revalidatePath("/treasury-reconciliation");
   revalidatePath("/payments");
-  return { error: null, success: true };
+  return { error: null, success: true, updatedCount: siblings.length };
 }
 
 export async function setSalaryPaymentActualDate(paymentId: string, date: string): Promise<ActionState> {
@@ -60,23 +87,37 @@ export async function setSalaryPaymentActualDate(paymentId: string, date: string
     return { error: "The actual payment date cannot be before the token generated date." };
   }
 
-  const updated = await db.salary_payments.update({
-    where: { id },
-    data: { actual_payment_date: new Date(date) },
+  const siblings = existing.treasury_token_number
+    ? await db.salary_payments.findMany({
+        where: { department_id: departmentId, pay_mode: "TREASURY", treasury_token_number: existing.treasury_token_number },
+      })
+    : [existing];
+
+  const newDate = new Date(date);
+  await db.salary_payments.updateMany({
+    where: { id: { in: siblings.map((s) => s.id) } },
+    data: { actual_payment_date: newDate },
   });
 
-  await writeAuditLog({
-    departmentId,
-    performedBy: BigInt(user.id),
-    tableName: "salary_payments",
-    recordId: id,
-    action: "UPDATE",
-    oldData: { actual_payment_date: existing.actual_payment_date },
-    newData: { actual_payment_date: updated.actual_payment_date },
-    reason: "Treasury reconciliation - actual payment date entered",
-  });
+  await Promise.all(
+    siblings.map((s) =>
+      writeAuditLog({
+        departmentId,
+        performedBy: BigInt(user.id),
+        tableName: "salary_payments",
+        recordId: s.id,
+        action: "UPDATE",
+        oldData: { actual_payment_date: s.actual_payment_date },
+        newData: { actual_payment_date: newDate },
+        reason:
+          s.id === id
+            ? "Treasury reconciliation - actual payment date entered"
+            : `Treasury reconciliation - auto-applied from token "${existing.treasury_token_number}" (same token as payment #${id})`,
+      }),
+    ),
+  );
 
   revalidatePath("/treasury-reconciliation");
   revalidatePath("/salary-payments");
-  return { error: null, success: true };
+  return { error: null, success: true, updatedCount: siblings.length };
 }

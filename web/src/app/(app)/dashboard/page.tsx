@@ -5,6 +5,7 @@ import { MODULE_REGISTRY_BY_KEY, NAV_TREE, type NavTreeNode } from "@/lib/module
 import { cn, formatDateTime } from "@/lib/utils";
 import { db } from "@/lib/db";
 import { getModulePermissions, requireUser } from "@/lib/session";
+import { NoticeBanner } from "@/components/notice-banner";
 
 type Tile = { moduleKey: ModuleKey; href: string; title: string; description: string };
 type Section = { label: string | null; icon: ModuleKey | null; tiles: Tile[] };
@@ -145,6 +146,7 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <PageHeader moduleKey="dashboard" title={`Welcome, ${user.name}`} description="Pick up where you left off." />
       {lastLoginBanner}
+      {user.departmentId ? <NoticeBanner departmentId={BigInt(user.departmentId)} /> : null}
 
       {hasAnyTiles ? (
         <div className="space-y-6">

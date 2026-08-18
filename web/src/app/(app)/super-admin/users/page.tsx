@@ -8,8 +8,8 @@ export default async function SuperAdminUsersPage() {
 
   const users = await db.users.findMany({
     include: {
-      roles: { select: { role_name: true } },
-      departments_users_department_idTodepartments: { select: { department_name: true } },
+      roles: { select: { role_name: true, role_code: true } },
+      departments_users_department_idTodepartments: { select: { department_name: true, tenant_code: true } },
     },
     orderBy: { name: "asc" },
   });
@@ -18,8 +18,11 @@ export default async function SuperAdminUsersPage() {
     id: u.id.toString(),
     name: u.name,
     email: u.email,
+    department_id: u.department_id?.toString() ?? null,
     department_name: u.departments_users_department_idTodepartments?.department_name ?? "Software Company",
+    tenant_code: u.departments_users_department_idTodepartments?.tenant_code ?? null,
     role_name: u.roles.role_name,
+    role_code: u.roles.role_code,
     status: u.status,
     last_login_at: u.last_login_at ? u.last_login_at.toISOString() : null,
     last_logout_at: u.last_logout_at ? u.last_logout_at.toISOString() : null,

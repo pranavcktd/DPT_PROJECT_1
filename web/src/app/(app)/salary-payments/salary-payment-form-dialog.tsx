@@ -19,11 +19,26 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, formatEnumLabel, formatINR } from "@/lib/utils";
-import { PAY_MODES, PAYMENT_TYPES, salaryPaymentFormSchema, type SalaryPaymentFormInput, type SalaryPaymentFormValues } from "./schema";
+import { PartyCombobox } from "@/components/party-combobox";
+import { TokenCombobox, type TokenOption } from "@/components/token-combobox";
+import { EmployeeFormDialog } from "../employees/employee-form-dialog";
+import {
+  MONTHS,
+  PAY_MODES,
+  PAYMENT_TYPES,
+  PAYMENT_TYPE_LABELS,
+  previousMonth,
+  salaryPaymentFormSchema,
+  type SalaryPaymentFormInput,
+  type SalaryPaymentFormValues,
+} from "./schema";
 import { createSalaryPayment, updateSalaryPayment } from "./actions";
 
 type EmployeeOption = { id: string; employee_name: string; pan_number: string };
 type SalaryPaymentRecord = SalaryPaymentFormValues & { id: string };
+
+const CURRENT_YEAR = new Date().getUTCFullYear();
+const YEAR_PRESETS = [CURRENT_YEAR - 2, CURRENT_YEAR - 1, CURRENT_YEAR];
 
 function numericProps(field: { value: unknown }, onChange: (v: string) => void) {
   return {
@@ -34,6 +49,7 @@ function numericProps(field: { value: unknown }, onChange: (v: string) => void) 
 
 export function SalaryPaymentFormDialog({
   employees,
+  tokens,
   payment,
   triggerLabel,
   triggerVariant = "default",
@@ -41,6 +57,7 @@ export function SalaryPaymentFormDialog({
   triggerClassName,
 }: {
   employees: EmployeeOption[];
+  tokens: TokenOption[];
   payment?: SalaryPaymentRecord;
   triggerLabel: string;
   triggerVariant?: ButtonVariant;
@@ -50,12 +67,16 @@ export function SalaryPaymentFormDialog({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [extraEmployees, setExtraEmployees] = useState<EmployeeOption[]>([]);
   const isEdit = !!payment;
+  const allEmployees = [...employees, ...extraEmployees.filter((ee) => !employees.some((e) => e.id === ee.id))];
 
   const form = useForm<SalaryPaymentFormInput, unknown, SalaryPaymentFormValues>({
     resolver: zodResolver(salaryPaymentFormSchema),
     defaultValues: payment ?? {
       employee_id: "",
+      payment_period_month: previousMonth(new Date()).month,
+      payment_period_year: previousMonth(new Date()).year,
       payment_type: "SALARY",
       other_type_label: "",
       gross_salary: 0,
@@ -71,7 +92,11 @@ export function SalaryPaymentFormDialog({
   const employeeId = form.watch("employee_id");
   const paymentType = form.watch("payment_type");
   const payMode = form.watch("pay_mode");
-  const selectedEmployee = employees.find((e) => e.id === employeeId);
+  const periodYear = form.watch("payment_period_year");
+  const [yearManualMode, setYearManualMode] = useState(
+    !!payment && !YEAR_PRESETS.includes(payment.payment_period_year),
+  );
+  const selectedEmployee = allEmployees.find((e) => e.id === employeeId);
   const grossSalary = Number(form.watch("gross_salary")) || 0;
   const itDeduction = Number(form.watch("it_deduction_amount")) || 0;
   const netPayable = grossSalary - itDeduction;
@@ -111,7 +136,7 @@ export function SalaryPaymentFormDialog({
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] sm:max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Salary Payment" : "New Salary Payment"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Payment" : "Add Payment"}</DialogTitle>
           <DialogDescription>Select an employee - their PAN is picked up automatically.</DialogDescription>
         </DialogHeader>
 
@@ -123,25 +148,101 @@ export function SalaryPaymentFormDialog({
               render={({ field }) => (
                 <FormItem className="sm:col-span-2">
                   <FormLabel>Employee</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <PartyCombobox
+                      items={allEmployees.map((e) => ({ id: e.id, label: e.employee_name, sublabel: e.pan_number }))}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Search employee by name..."
+                      addNewLabel="Add new employee"
+                      renderAddDialog={({ open: addOpen, onOpenChange, onCreated }) => (
+                        <EmployeeFormDialog
+                          triggerLabel="Add new employee"
+                          open={addOpen}
+                          onOpenChange={onOpenChange}
+                          hideTrigger
+                          submitLabel="Save & Close"
+                          onCreated={(created) => {
+                            setExtraEmployees((prev) => [...prev, { id: created.id, employee_name: created.employee_name, pan_number: "" }]);
+                            onCreated(created.id);
+                          }}
+                        />
+                      )}
+                    />
+                  </FormControl>
+                  {selectedEmployee ? (
+                    <p className="text-xs text-muted-foreground">PAN: {selectedEmployee.pan_number}</p>
+                  ) : null}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="payment_period_month"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Payment For Month</FormLabel>
+                  <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select an employee">
-                          {(v: string) => employees.find((e) => e.id === v)?.employee_name}
-                        </SelectValue>
+                        <SelectValue>{(v: string) => MONTHS.find((m) => m.value === Number(v))?.label}</SelectValue>
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {employees.map((e) => (
-                        <SelectItem key={e.id} value={e.id}>
-                          {e.employee_name}
+                      {MONTHS.map((m) => (
+                        <SelectItem key={m.value} value={String(m.value)}>
+                          {m.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {selectedEmployee ? (
-                    <p className="text-xs text-muted-foreground">PAN: {selectedEmployee.pan_number}</p>
-                  ) : null}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="payment_period_year"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Payment For Year</FormLabel>
+                  <div className="flex gap-2">
+                    <Select
+                      value={yearManualMode ? "OTHER" : String(field.value)}
+                      onValueChange={(v) => {
+                        if (v === "OTHER") {
+                          setYearManualMode(true);
+                        } else {
+                          setYearManualMode(false);
+                          field.onChange(Number(v));
+                        }
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue>{(v: string) => (v === "OTHER" ? "Other" : v)}</SelectValue>
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {YEAR_PRESETS.map((y) => (
+                          <SelectItem key={y} value={String(y)}>
+                            {y}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="OTHER">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {yearManualMode ? (
+                      <Input
+                        type="number"
+                        className="w-28"
+                        value={typeof periodYear === "number" ? periodYear : String(periodYear ?? "")}
+                        onChange={(e) => field.onChange(e.target.value)}
+                      />
+                    ) : null}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -156,13 +257,13 @@ export function SalaryPaymentFormDialog({
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue>{(v: string) => formatEnumLabel(v)}</SelectValue>
+                        <SelectValue>{(v: string) => PAYMENT_TYPE_LABELS[v as (typeof PAYMENT_TYPES)[number]]}</SelectValue>
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {PAYMENT_TYPES.map((t) => (
                         <SelectItem key={t} value={t}>
-                          {formatEnumLabel(t)}
+                          {PAYMENT_TYPE_LABELS[t]}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -277,7 +378,18 @@ export function SalaryPaymentFormDialog({
                     <FormItem>
                       <FormLabel>Treasury Token Number</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <TokenCombobox
+                          tokens={tokens}
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          onSelectExisting={(t) => {
+                            field.onChange(t.token_number);
+                            if (t.token_generated_date) {
+                              form.setValue("token_generated_date", t.token_generated_date as never);
+                            }
+                          }}
+                          placeholder="Type or pick a previous token"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -325,7 +437,7 @@ export function SalaryPaymentFormDialog({
 
             <DialogFooter className="sm:col-span-2">
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Saving..." : isEdit ? "Save changes" : "Create payment"}
+                {form.formState.isSubmitting ? "Saving..." : "Save"}
               </Button>
             </DialogFooter>
           </form>

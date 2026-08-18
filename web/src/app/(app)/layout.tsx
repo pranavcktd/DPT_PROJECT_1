@@ -24,7 +24,9 @@ const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/super-admin/departments", label: "Departments", icon: "superAdmin" },
   { href: "/super-admin/users", label: "Users", icon: "staff" },
+  { href: "/super-admin/notices", label: "Notices", icon: "notices" },
   { href: "/super-admin/audit-logs", label: "Audit Logs", icon: "auditLogs" },
+  { href: "/super-admin/profile", label: "My Profile", icon: "account" },
 ];
 
 function initials(name: string | null | undefined) {
@@ -104,7 +106,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   );
 
   return (
-    <div className="flex min-h-svh">
+    <div className="flex h-svh overflow-hidden">
       <IdleLogoutGuard />
       <aside className="no-print hidden w-64 shrink-0 flex-col gap-4 border-r bg-background p-4 md:flex">
         {brand}
@@ -113,7 +115,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="no-print flex items-center gap-3 border-b bg-background px-4 py-3">
           <Sheet>
             {/* Plain <button> + buttonVariants (not <Button>) - nesting a component that
@@ -143,7 +145,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        <main className="flex-1 bg-muted/20 px-4 py-6 md:px-8 md:py-8">
+        <main className="flex-1 overflow-y-auto bg-muted/20 px-4 py-6 md:px-8 md:py-8">
           <div className="mx-auto max-w-6xl">{children}</div>
         </main>
       </div>

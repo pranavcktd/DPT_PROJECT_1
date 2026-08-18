@@ -21,13 +21,14 @@ export async function GET(request: Request) {
   const rows = await getTdsReportRows(departmentId, fy, quarter, contractor);
 
   const csv = toCsv(
-    ["Contractor / Party Name", "PAN", "Base Cost (A)", "Total IT TDS Deducted", "Payment Date"],
+    ["Contractor / Party Name", "PAN", "Base Cost (A)", "Total IT TDS Deducted", "Token Generated Date", "Reconciled Date"],
     rows.map((r) => [
       r.contractor_name_snapshot,
       r.contractor_pan_snapshot,
       Number(r.base_cost),
       Number(r.it_tds_amount ?? 0),
-      formatDateForReport(r.treasury_payment_date),
+      formatDateForReport(r.token_generated_date),
+      formatDateForReport(r.actual_payment_date),
     ]),
   );
 

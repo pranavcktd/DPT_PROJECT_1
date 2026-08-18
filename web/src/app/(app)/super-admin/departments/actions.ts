@@ -185,6 +185,36 @@ export async function setDepartmentStatus(departmentId: string, status: "ACTIVE"
   return { error: null, success: true };
 }
 
+/**
+ * Toggles whether this department's Payment Entry may accept future-dated
+ * agreement/invoice dates. Default is OFF (strict) - this override is
+ * Super-Admin-only by design, kept out of reach of the department the
+ * guardrail restricts (see trg_payments_before_date_check in database/schema.sql).
+ */
+export async function setAllowFuturePaymentDates(departmentId: string, allow: boolean): Promise<ActionState> {
+  const superAdmin = await requireSuperAdmin();
+  const id = BigInt(departmentId);
+  const existing = await db.departments.findUniqueOrThrow({ where: { id } });
+
+  const updated = await db.departments.update({ where: { id }, data: { allow_future_payment_dates: allow } });
+
+  await writeAuditLog({
+    departmentId: id,
+    performedBy: BigInt(superAdmin.id),
+    tableName: "departments",
+    recordId: id,
+    action: "UPDATE",
+    oldData: existing,
+    newData: updated,
+    reason: allow
+      ? "Future-dated agreement/invoice dates allowed by Super Admin"
+      : "Future-dated agreement/invoice dates restricted by Super Admin",
+  });
+
+  revalidatePath("/super-admin/departments");
+  return { error: null, success: true };
+}
+
 /** Hard delete - cascades to every record owned by the department (contractors, schemes, works, payments, users, ...). */
 export async function deleteDepartment(departmentId: string, confirmTenantCode: string): Promise<ActionState> {
   const superAdmin = await requireSuperAdmin();

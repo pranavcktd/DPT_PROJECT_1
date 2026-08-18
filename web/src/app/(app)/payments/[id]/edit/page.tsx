@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireModulePermission } from "@/lib/session";
 import { PaymentForm } from "../../new/payment-form";
+import { getPaymentTokenOptions } from "../../token-data";
 
 export default async function EditPaymentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,7 +19,7 @@ export default async function EditPaymentPage({ params }: { params: Promise<{ id
     );
   }
 
-  const [works, contractors, department, utilizedByWork] = await Promise.all([
+  const [works, contractors, department, utilizedByWork, tokens] = await Promise.all([
     db.works.findMany({
       where: { department_id: departmentId, status: "ONGOING" },
       include: { schemes: { select: { scheme_name: true } } },
@@ -32,11 +33,12 @@ export default async function EditPaymentPage({ params }: { params: Promise<{ id
     db.payments.groupBy({
       by: ["work_id"],
       where: { department_id: departmentId, status: { not: "CANCELLED" } },
-      _sum: { base_cost: true },
+      _sum: { total_bill_value: true },
     }),
+    getPaymentTokenOptions(departmentId),
   ]);
 
-  const utilizedMap = new Map(utilizedByWork.map((u) => [u.work_id.toString(), Number(u._sum.base_cost ?? 0)]));
+  const utilizedMap = new Map(utilizedByWork.map((u) => [u.work_id.toString(), Number(u._sum.total_bill_value ?? 0)]));
 
   const workOptions = works.map((w) => {
     const sanctioned = Number(w.sanctioned_cost);
@@ -60,13 +62,21 @@ export default async function EditPaymentPage({ params }: { params: Promise<{ id
     bank_name: c.bank_name,
     account_number: c.account_number,
     ifsc_code: c.ifsc_code,
+    address: c.address,
+    district: c.district,
+    state: c.state,
+    pin_code: c.pin_code,
+    phone: c.phone,
   }));
 
   return (
     <PaymentForm
       works={workOptions}
       contractors={contractorOptions}
+      tokens={tokens}
       departmentStateCode={department.state_code}
+      gstinRegistrationDate={department.gstin_registration_date?.toISOString().slice(0, 10) ?? null}
+      allowFutureDates={department.allow_future_payment_dates}
       payment={{
         id: payment.id.toString(),
         work_id: payment.work_id.toString(),
@@ -76,6 +86,7 @@ export default async function EditPaymentPage({ params }: { params: Promise<{ id
         invoice_number: payment.invoice_number,
         invoice_date: payment.invoice_date.toISOString().slice(0, 10),
         base_cost: Number(payment.base_cost),
+        total_bill_value: Number(payment.total_bill_value),
         gst_rate: Number(payment.gst_rate),
         gst_rate_is_manual: payment.gst_rate_is_manual,
         it_tds_rate: Number(payment.it_tds_rate),

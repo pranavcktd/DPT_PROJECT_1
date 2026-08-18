@@ -41,7 +41,7 @@ export default async function Form24qReportPage(props: PageProps<"/reports/24q">
       <PageHeader
         moduleKey="reports"
         title="TDS Quarterly Return (Form 24Q) - Salaried Employees"
-        description="Employee-wise Income Tax TDS deducted, grouped by financial year and quarter, based on the treasury payment date."
+        description="Employee-wise Income Tax TDS deducted, grouped by financial year and quarter based on the reconciled treasury payment date (falls back to the token generated date until reconciled)."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <PrintButton />
@@ -87,13 +87,14 @@ export default async function Form24qReportPage(props: PageProps<"/reports/24q">
                 <TableHead>PAN</TableHead>
                 <TableHead className="text-right">Gross Salary</TableHead>
                 <TableHead className="text-right">Total IT TDS Deducted</TableHead>
-                <TableHead>Payment Date</TableHead>
+                <TableHead>Token Generated Date</TableHead>
+                <TableHead>Reconciled Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     No treasury-paid entries found for {fy} {FY_QUARTERS[quarter - 1].label}.
                   </TableCell>
                 </TableRow>
@@ -106,15 +107,17 @@ export default async function Form24qReportPage(props: PageProps<"/reports/24q">
                       <TableCell className="text-right">{formatINR(Number(r.gross_salary))}</TableCell>
                       <TableCell className="text-right">{formatINR(Number(r.it_deduction_amount ?? 0))}</TableCell>
                       <TableCell className="whitespace-nowrap">
-                        {formatDateForReport(r.treasury_payment_date)}
+                        {formatDateForReport(r.token_generated_date)}
                         <EstimatedDateBadge estimated={!!r.payment_date_is_estimated} />
                       </TableCell>
+                      <TableCell className="whitespace-nowrap">{formatDateForReport(r.actual_payment_date) || "Pending"}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="font-medium">
                     <TableCell colSpan={2}>Total</TableCell>
                     <TableCell className="text-right">{formatINR(totalGross)}</TableCell>
                     <TableCell className="text-right">{formatINR(totalTds)}</TableCell>
+                    <TableCell />
                     <TableCell />
                   </TableRow>
                 </>

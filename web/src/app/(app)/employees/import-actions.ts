@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireModulePermission } from "@/lib/session";
 import { writeAuditLog } from "@/lib/audit";
 import { parseCsvRows, summarizeImport, type ImportRowResult, type ImportSummary } from "@/lib/csv-import";
+import { uniqueConstraintFields } from "@/lib/prisma-errors";
 import { employeeFormSchema } from "./schema";
 
 export type ImportActionState = { error: string | null; summary?: ImportSummary };
@@ -24,6 +25,10 @@ function toNullableDate(value?: string): Date | null {
 
 function friendlyRowError(error: unknown): string {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    const fields = uniqueConstraintFields(error);
+    if (fields.includes("employee_code")) {
+      return "Duplicate Employee ID - an employee with this Employee ID already exists.";
+    }
     return "Duplicate PAN - an employee with this PAN already exists.";
   }
   return error instanceof Error ? error.message : "Unknown error";
@@ -65,6 +70,9 @@ export async function importEmployees(_prev: ImportActionState, formData: FormDa
           department_id: departmentId,
           employee_name: values.employee_name,
           pan_number: values.pan_number,
+          email: toNullable(values.email),
+          designation: toNullable(values.designation),
+          employee_code: toNullable(values.employee_code),
           dob: toNullableDate(values.dob),
           mobile: toNullable(values.mobile),
           joining_date: toNullableDate(values.joining_date),

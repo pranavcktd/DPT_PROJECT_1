@@ -26,6 +26,8 @@ export async function getTdsReportRows(
       contractor_pan_snapshot: true,
       base_cost: true,
       it_tds_amount: true,
+      token_generated_date: true,
+      actual_payment_date: true,
       treasury_payment_date: true,
       payment_date_is_estimated: true,
     },

@@ -15,16 +15,21 @@ function ReconciliationRowActions({ row }: { row: ReconciliationRow }) {
   const router = useRouter();
   const [date, setDate] = useState(row.actualPaymentDate ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [appliedNote, setAppliedNote] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSave() {
     setError(null);
+    setAppliedNote(null);
     startTransition(async () => {
       const action = row.recordType === "payment" ? setPaymentActualDate : setSalaryPaymentActualDate;
       const result = await action(row.id, date);
       if (result.error) {
         setError(result.error);
         return;
+      }
+      if (result.updatedCount && result.updatedCount > 1) {
+        setAppliedNote(`Applied to ${result.updatedCount} payments sharing token "${row.tokenNumber}".`);
       }
       router.refresh();
     });
@@ -49,6 +54,7 @@ function ReconciliationRowActions({ row }: { row: ReconciliationRow }) {
         </Button>
       </div>
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {appliedNote ? <p className="text-xs text-emerald-600">{appliedNote}</p> : null}
     </div>
   );
 }

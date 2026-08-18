@@ -5,8 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchInput } from "@/components/search-input";
+import { PaginationBar } from "@/components/pagination-bar";
+import { usePagination } from "@/hooks/use-pagination";
 import { EstimatedDateBadge } from "@/components/estimated-date-badge";
-import { formatEnumLabel, formatINR } from "@/lib/utils";
+import type { TokenOption } from "@/components/token-combobox";
+import { formatINR } from "@/lib/utils";
+import { MONTHS, PAYMENT_TYPE_LABELS } from "./schema";
 import { SalaryPaymentFormDialog } from "./salary-payment-form-dialog";
 import { CancelSalaryPaymentDialog } from "./cancel-salary-payment-dialog";
 
@@ -20,7 +24,9 @@ export type SalaryPaymentRow = {
   id: string;
   employee_id: string;
   employee_name_snapshot: string;
-  payment_type: "SALARY" | "DA" | "ARREAR" | "MEDICAL_REIMBURSEMENT" | "OTHER";
+  payment_period_month: number;
+  payment_period_year: number;
+  payment_type: "SALARY" | "DA" | "ARREAR" | "MEDICAL_REIMBURSEMENT" | "SALARY_ARREAR" | "DA_ARREAR" | "OTHER";
   other_type_label: string;
   gross_salary: number;
   it_deduction_amount: number;
@@ -40,11 +46,13 @@ type EmployeeOption = { id: string; employee_name: string; pan_number: string };
 export function SalaryPaymentsTable({
   payments,
   employees,
+  tokens,
   can_edit,
   can_delete,
 }: {
   payments: SalaryPaymentRow[];
   employees: EmployeeOption[];
+  tokens: TokenOption[];
   can_edit: boolean;
   can_delete: boolean;
 }) {
@@ -60,6 +68,7 @@ export function SalaryPaymentsTable({
         .includes(q),
     );
   }, [payments, query]);
+  const paged = usePagination(filtered, 10);
 
   return (
     <div className="space-y-4">
@@ -70,6 +79,7 @@ export function SalaryPaymentsTable({
             <TableHeader>
               <TableRow>
                 <TableHead>Employee</TableHead>
+                <TableHead>Period</TableHead>
                 <TableHead>Payment Type</TableHead>
                 <TableHead className="text-right">Gross Salary</TableHead>
                 <TableHead className="text-right">IT Deduction</TableHead>
@@ -82,17 +92,20 @@ export function SalaryPaymentsTable({
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground">
                     {payments.length === 0 ? "No salary payments recorded yet." : "No payments match your search."}
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((p) => {
+                paged.pageItems.map((p) => {
                   const canModify = p.status === "SAVED";
                   return (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">{p.employee_name_snapshot}</TableCell>
-                      <TableCell>{p.payment_type === "OTHER" ? p.other_type_label : formatEnumLabel(p.payment_type)}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {MONTHS.find((m) => m.value === p.payment_period_month)?.label.slice(0, 3)} {p.payment_period_year}
+                      </TableCell>
+                      <TableCell>{p.payment_type === "OTHER" ? p.other_type_label : PAYMENT_TYPE_LABELS[p.payment_type]}</TableCell>
                       <TableCell className="text-right">{formatINR(p.gross_salary)}</TableCell>
                       <TableCell className="text-right">{formatINR(p.it_deduction_amount)}</TableCell>
                       <TableCell className="text-right">{formatINR(p.net_payable_amount)}</TableCell>
@@ -108,9 +121,12 @@ export function SalaryPaymentsTable({
                           {can_edit && canModify ? (
                             <SalaryPaymentFormDialog
                               employees={employees}
+                              tokens={tokens}
                               payment={{
                                 id: p.id,
                                 employee_id: p.employee_id,
+                                payment_period_month: p.payment_period_month,
+                                payment_period_year: p.payment_period_year,
                                 payment_type: p.payment_type,
                                 other_type_label: p.other_type_label,
                                 gross_salary: p.gross_salary,
@@ -139,6 +155,15 @@ export function SalaryPaymentsTable({
           </Table>
         </CardContent>
       </Card>
+      <PaginationBar
+        page={paged.page}
+        totalPages={paged.totalPages}
+        totalItems={paged.totalItems}
+        pageSize={paged.pageSize}
+        effectivePageSize={paged.effectivePageSize}
+        onPageChange={paged.setPage}
+        onPageSizeChange={paged.setPageSize}
+      />
     </div>
   );
 }

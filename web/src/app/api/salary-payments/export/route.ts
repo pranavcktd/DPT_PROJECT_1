@@ -5,6 +5,8 @@ import { formatDateForReport, toCsv } from "@/lib/reports";
 const COLUMNS = [
   "employee_pan",
   "employee_name",
+  "payment_period_month",
+  "payment_period_year",
   "payment_type",
   "other_type_label",
   "gross_salary",
@@ -40,6 +42,8 @@ export async function GET() {
     payments.map((p) => [
       p.employee_pan_snapshot,
       p.employee_name_snapshot,
+      p.payment_period_month,
+      p.payment_period_year,
       p.payment_type,
       p.other_type_label,
       Number(p.gross_salary),

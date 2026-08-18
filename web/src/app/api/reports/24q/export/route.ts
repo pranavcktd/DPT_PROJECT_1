@@ -21,13 +21,14 @@ export async function GET(request: Request) {
   const rows = await get24qReportRows(departmentId, fy, quarter, employee);
 
   const csv = toCsv(
-    ["Employee Name", "PAN", "Gross Salary", "Total IT TDS Deducted", "Payment Date"],
+    ["Employee Name", "PAN", "Gross Salary", "Total IT TDS Deducted", "Token Generated Date", "Reconciled Date"],
     rows.map((r) => [
       r.employee_name_snapshot,
       r.employee_pan_snapshot,
       Number(r.gross_salary),
       Number(r.it_deduction_amount ?? 0),
-      formatDateForReport(r.treasury_payment_date),
+      formatDateForReport(r.token_generated_date),
+      formatDateForReport(r.actual_payment_date),
     ]),
   );
 

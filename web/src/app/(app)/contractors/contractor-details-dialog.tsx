@@ -44,6 +44,9 @@ export function ContractorDetailsDialog({ contractor }: { contractor: Contractor
           <Field label="Mobile" value={contractor.phone} />
           <Field label="Email" value={contractor.email} />
           <Field label="Address" value={contractor.address} />
+          <Field label="District" value={contractor.district} />
+          <Field label="State" value={contractor.state} />
+          <Field label="Pin Code" value={contractor.pin_code} />
           <div className="sm:col-span-2 border-t pt-3">
             <p className="mb-2 text-xs font-medium text-muted-foreground uppercase">Bank Details</p>
           </div>

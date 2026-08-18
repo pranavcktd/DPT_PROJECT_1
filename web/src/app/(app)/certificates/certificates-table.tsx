@@ -7,6 +7,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchInput } from "@/components/search-input";
+import { PaginationBar } from "@/components/pagination-bar";
+import { usePagination } from "@/hooks/use-pagination";
 import { SendEmailDialog } from "@/components/send-email-dialog";
 import { formatEnumLabel } from "@/lib/utils";
 import { emailWorkExperienceCertificate } from "./email-actions";
@@ -41,6 +43,7 @@ export function CertificatesTable({
       `${c.certificate_number} ${c.contractor_name} ${c.work_name}`.toLowerCase().includes(q),
     );
   }, [certificates, query]);
+  const paged = usePagination(filtered, 10);
 
   return (
     <div className="space-y-4">
@@ -67,7 +70,7 @@ export function CertificatesTable({
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((c) => (
+                paged.pageItems.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium">{c.certificate_number}</TableCell>
                     <TableCell>{c.contractor_name}</TableCell>
@@ -113,6 +116,15 @@ export function CertificatesTable({
           </Table>
         </CardContent>
       </Card>
+      <PaginationBar
+        page={paged.page}
+        totalPages={paged.totalPages}
+        totalItems={paged.totalItems}
+        pageSize={paged.pageSize}
+        effectivePageSize={paged.effectivePageSize}
+        onPageChange={paged.setPage}
+        onPageSizeChange={paged.setPageSize}
+      />
     </div>
   );
 }

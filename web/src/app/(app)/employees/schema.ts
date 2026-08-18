@@ -7,6 +7,9 @@ export const employeeFormSchema = z.object({
     .trim()
     .toUpperCase()
     .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "PAN must be in the format AAAAA0000A"),
+  email: z.string().trim().email("Invalid email").max(150).optional().or(z.literal("")),
+  designation: z.string().trim().max(100).optional().or(z.literal("")),
+  employee_code: z.string().trim().max(30).optional().or(z.literal("")),
   dob: z.string().optional().or(z.literal("")),
   mobile: z.string().trim().max(20).optional().or(z.literal("")),
   joining_date: z.string().optional().or(z.literal("")),

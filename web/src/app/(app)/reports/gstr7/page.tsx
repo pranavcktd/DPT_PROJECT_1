@@ -44,7 +44,7 @@ export default async function Gstr7ReportPage(props: PageProps<"/reports/gstr7">
       <PageHeader
         moduleKey="reports"
         title="GSTR-7"
-        description="Monthly GST TDS deducted per invoice, based on the treasury payment date - file by the 10th of the next month."
+        description="Monthly GST TDS deducted per invoice, based on the reconciled treasury payment date (falls back to the token generated date until reconciled) - file by the 10th of the next month."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <PrintButton />
@@ -90,7 +90,8 @@ export default async function Gstr7ReportPage(props: PageProps<"/reports/gstr7">
                 <TableHead>GSTIN</TableHead>
                 <TableHead>Invoice No.</TableHead>
                 <TableHead>Invoice Date</TableHead>
-                <TableHead>Payment Date</TableHead>
+                <TableHead>Token Generated Date</TableHead>
+                <TableHead>Reconciled Date</TableHead>
                 <TableHead className="text-right">Total Bill Value (C)</TableHead>
                 <TableHead>Mobile Number</TableHead>
                 <TableHead className="text-right">Base Cost (A)</TableHead>
@@ -102,7 +103,7 @@ export default async function Gstr7ReportPage(props: PageProps<"/reports/gstr7">
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center text-muted-foreground">
+                  <TableCell colSpan={12} className="text-center text-muted-foreground">
                     No treasury-paid entries found for {monthLabel} {year}.
                   </TableCell>
                 </TableRow>
@@ -115,9 +116,10 @@ export default async function Gstr7ReportPage(props: PageProps<"/reports/gstr7">
                       <TableCell>{r.invoice_number}</TableCell>
                       <TableCell>{formatDateForReport(r.invoice_date)}</TableCell>
                       <TableCell className="whitespace-nowrap">
-                        {formatDateForReport(r.treasury_payment_date)}
+                        {formatDateForReport(r.token_generated_date)}
                         <EstimatedDateBadge estimated={!!r.payment_date_is_estimated} />
                       </TableCell>
+                      <TableCell className="whitespace-nowrap">{formatDateForReport(r.actual_payment_date) || "Pending"}</TableCell>
                       <TableCell className="text-right">{formatINR(Number(r.total_bill_value ?? 0))}</TableCell>
                       <TableCell>{r.contractors.phone ?? "-"}</TableCell>
                       <TableCell className="text-right">{formatINR(Number(r.base_cost))}</TableCell>
@@ -127,7 +129,7 @@ export default async function Gstr7ReportPage(props: PageProps<"/reports/gstr7">
                     </TableRow>
                   ))}
                   <TableRow className="font-medium">
-                    <TableCell colSpan={5}>Total</TableCell>
+                    <TableCell colSpan={6}>Total</TableCell>
                     <TableCell className="text-right">{formatINR(totals.billValue)}</TableCell>
                     <TableCell />
                     <TableCell className="text-right">{formatINR(totals.baseCost)}</TableCell>

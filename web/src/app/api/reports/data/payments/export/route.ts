@@ -20,7 +20,17 @@ export async function GET(request: Request) {
 
   const rows = await getPaymentsReportRows(BigInt(user.departmentId), search, status, from, to);
   const csv = toCsv(
-    ["Invoice Number", "Contractor", "Work", "Base Cost", "Net Payable", "Status", "Invoice Date", "Treasury Date"],
+    [
+      "Invoice Number",
+      "Contractor",
+      "Work",
+      "Base Cost",
+      "Net Payable",
+      "Status",
+      "Invoice Date",
+      "Token Generated Date",
+      "Reconciled Date",
+    ],
     rows.map((p) => [
       p.invoice_number,
       p.contractor_name_snapshot,
@@ -29,7 +39,8 @@ export async function GET(request: Request) {
       Number(p.net_payable_amount ?? 0),
       p.status,
       formatDateForReport(p.invoice_date),
-      formatDateForReport(p.treasury_payment_date),
+      formatDateForReport(p.token_generated_date),
+      formatDateForReport(p.actual_payment_date),
     ]),
   );
 

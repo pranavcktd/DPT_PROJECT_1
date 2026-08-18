@@ -158,6 +158,22 @@ export function DepartmentProfileForm({
             />
             <FormField
               control={form.control}
+              name="gstin_registration_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>GSTIN Registration Date</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Invoice dates in Payment Entry cannot be earlier than this date.
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="pan"
               render={({ field }) => (
                 <FormItem>

@@ -25,7 +25,19 @@ export function LoginForm() {
         <Label htmlFor="password">Password</Label>
         <Input id="password" name="password" type="password" autoComplete="current-password" required />
       </div>
-      {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
+      {state.error ? (
+        <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+          <p className="text-sm text-destructive">{state.error}</p>
+          {state.adminContact ? (
+            <div className="space-y-0.5 border-t border-destructive/20 pt-2 text-sm">
+              <p className="font-medium">Contact Administrator</p>
+              <p>{state.adminContact.name}</p>
+              {state.adminContact.phone ? <p>Mobile: {state.adminContact.phone}</p> : null}
+              <p>Email: {state.adminContact.email}</p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <Button type="submit" className="w-full" disabled={isPending}>
         {isPending ? "Signing in..." : "Sign in"}
       </Button>

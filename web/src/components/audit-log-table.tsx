@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -13,6 +12,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PaginationBar } from "@/components/pagination-bar";
+import { usePagination } from "@/hooks/use-pagination";
 import { formatDateTime } from "@/lib/utils";
 
 export type AuditLogRow = {
@@ -82,8 +83,7 @@ function AuditLogDetailsDialog({ row }: { row: AuditLogRow }) {
 }
 
 export function AuditLogTable({ rows, showDepartment }: { rows: AuditLogRow[]; showDepartment?: boolean }) {
-  const [visibleCount, setVisibleCount] = useState(50);
-  const visible = rows.slice(0, visibleCount);
+  const paged = usePagination(rows, 20);
 
   return (
     <div className="space-y-4">
@@ -110,7 +110,7 @@ export function AuditLogTable({ rows, showDepartment }: { rows: AuditLogRow[]; s
                   </TableCell>
                 </TableRow>
               ) : (
-                visible.map((row) => (
+                paged.pageItems.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="whitespace-nowrap">{formatDateTime(row.created_at)}</TableCell>
                     <TableCell>{row.user_name ?? "Unknown user"}</TableCell>
@@ -131,13 +131,15 @@ export function AuditLogTable({ rows, showDepartment }: { rows: AuditLogRow[]; s
           </Table>
         </CardContent>
       </Card>
-      {visibleCount < rows.length ? (
-        <div className="flex justify-center">
-          <Button variant="outline" onClick={() => setVisibleCount((n) => n + 50)}>
-            Load more ({rows.length - visibleCount} remaining)
-          </Button>
-        </div>
-      ) : null}
+      <PaginationBar
+        page={paged.page}
+        totalPages={paged.totalPages}
+        totalItems={paged.totalItems}
+        pageSize={paged.pageSize}
+        effectivePageSize={paged.effectivePageSize}
+        onPageChange={paged.setPage}
+        onPageSizeChange={paged.setPageSize}
+      />
     </div>
   );
 }

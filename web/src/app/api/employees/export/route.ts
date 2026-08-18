@@ -2,7 +2,18 @@ import { requireModulePermission, ForbiddenError, UnauthenticatedError } from "@
 import { db } from "@/lib/db";
 import { formatDateForReport, toCsv } from "@/lib/reports";
 
-const COLUMNS = ["employee_name", "pan_number", "dob", "mobile", "joining_date", "transfer_date", "status"];
+const COLUMNS = [
+  "employee_name",
+  "pan_number",
+  "email",
+  "designation",
+  "employee_code",
+  "dob",
+  "mobile",
+  "joining_date",
+  "transfer_date",
+  "status",
+];
 
 /** Full-field export matching the import template exactly, for backup or re-import elsewhere. */
 export async function GET() {
@@ -25,6 +36,9 @@ export async function GET() {
     employees.map((e) => [
       e.employee_name,
       e.pan_number,
+      e.email,
+      e.designation,
+      e.employee_code,
       formatDateForReport(e.dob),
       e.mobile,
       formatDateForReport(e.joining_date),

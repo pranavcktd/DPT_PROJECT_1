@@ -12,7 +12,12 @@ export const paymentFormSchemaBase = z.object({
   agreement_number: z.string().trim().min(1, "Agreement number is required").max(50),
   agreement_date: z.string().min(1, "Agreement date is required"),
 
-  invoice_number: z.string().trim().min(1, "Invoice number is required").max(50),
+  invoice_number: z
+    .string()
+    .trim()
+    .min(1, "Invoice number is required")
+    .max(16, "Invoice number cannot exceed 16 characters")
+    .regex(/^[A-Za-z0-9\-/]+$/, "Only letters, numbers, hyphen (-) and slash (/) are allowed"),
   invoice_date: z.string().min(1, "Invoice date is required"),
   base_cost: z.coerce.number().positive("Must be greater than 0"),
 

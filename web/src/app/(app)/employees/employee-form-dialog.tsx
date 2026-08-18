@@ -29,15 +29,28 @@ export function EmployeeFormDialog({
   triggerVariant = "default",
   triggerSize = "default",
   triggerClassName,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  hideTrigger = false,
+  submitLabel,
+  onCreated,
 }: {
   employee?: EmployeeRecord;
   triggerLabel: string;
   triggerVariant?: ButtonVariant;
   triggerSize?: ButtonSize;
   triggerClassName?: string;
+  /** For embedding as a controlled "quick add" popup (e.g. from a party search combobox) instead of the default self-contained trigger. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
+  submitLabel?: string;
+  onCreated?: (employee: { id: string; employee_name: string }) => void;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
   const [serverError, setServerError] = useState<string | null>(null);
   const isEdit = !!employee;
 
@@ -46,6 +59,9 @@ export function EmployeeFormDialog({
     defaultValues: employee ?? {
       employee_name: "",
       pan_number: "",
+      email: "",
+      designation: "",
+      employee_code: "",
       dob: "",
       mobile: "",
       joining_date: "",
@@ -68,6 +84,10 @@ export function EmployeeFormDialog({
       return;
     }
 
+    if (!isEdit && result.employeeId && onCreated) {
+      onCreated({ id: result.employeeId, employee_name: values.employee_name });
+    }
+
     setOpen(false);
     form.reset();
     router.refresh();
@@ -81,12 +101,14 @@ export function EmployeeFormDialog({
         if (!next) setServerError(null);
       }}
     >
-      <DialogTrigger
-        className={cn(buttonVariants({ variant: triggerVariant, size: triggerSize }), triggerClassName)}
-        render={<button type="button" />}
-      >
-        {triggerLabel}
-      </DialogTrigger>
+      {!hideTrigger ? (
+        <DialogTrigger
+          className={cn(buttonVariants({ variant: triggerVariant, size: triggerSize }), triggerClassName)}
+          render={<button type="button" />}
+        >
+          {triggerLabel}
+        </DialogTrigger>
+      ) : null}
       <DialogContent className="max-h-[90vh] sm:max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Employee" : "New Employee"}</DialogTitle>
@@ -127,6 +149,45 @@ export function EmployeeFormDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Mobile</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="designation"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Designation</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="employee_code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Employee ID</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -199,7 +260,7 @@ export function EmployeeFormDialog({
 
             <DialogFooter className="sm:col-span-2">
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Saving..." : isEdit ? "Save changes" : "Create employee"}
+                {form.formState.isSubmitting ? "Saving..." : (submitLabel ?? (isEdit ? "Save changes" : "Create employee"))}
               </Button>
             </DialogFooter>
           </form>

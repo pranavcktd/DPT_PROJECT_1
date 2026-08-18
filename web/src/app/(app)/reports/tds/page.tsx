@@ -41,7 +41,7 @@ export default async function TdsReportPage(props: PageProps<"/reports/tds">) {
       <PageHeader
         moduleKey="reports"
         title="TDS Quarterly Return (Form 26Q)"
-        description="Income Tax TDS deducted, grouped by financial year and quarter, based on the treasury payment date."
+        description="Income Tax TDS deducted, grouped by financial year and quarter based on the reconciled treasury payment date (falls back to the token generated date until reconciled)."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <PrintButton />
@@ -87,13 +87,14 @@ export default async function TdsReportPage(props: PageProps<"/reports/tds">) {
                 <TableHead>PAN</TableHead>
                 <TableHead className="text-right">Base Cost (A)</TableHead>
                 <TableHead className="text-right">Total IT TDS Deducted</TableHead>
-                <TableHead>Payment Date</TableHead>
+                <TableHead>Token Generated Date</TableHead>
+                <TableHead>Reconciled Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     No treasury-paid entries found for {fy} {FY_QUARTERS[quarter - 1].label}.
                   </TableCell>
                 </TableRow>
@@ -106,15 +107,17 @@ export default async function TdsReportPage(props: PageProps<"/reports/tds">) {
                       <TableCell className="text-right">{formatINR(Number(r.base_cost))}</TableCell>
                       <TableCell className="text-right">{formatINR(Number(r.it_tds_amount ?? 0))}</TableCell>
                       <TableCell className="whitespace-nowrap">
-                        {formatDateForReport(r.treasury_payment_date)}
+                        {formatDateForReport(r.token_generated_date)}
                         <EstimatedDateBadge estimated={!!r.payment_date_is_estimated} />
                       </TableCell>
+                      <TableCell className="whitespace-nowrap">{formatDateForReport(r.actual_payment_date) || "Pending"}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="font-medium">
                     <TableCell colSpan={2}>Total</TableCell>
                     <TableCell className="text-right">{formatINR(totalBase)}</TableCell>
                     <TableCell className="text-right">{formatINR(totalTds)}</TableCell>
+                    <TableCell />
                     <TableCell />
                   </TableRow>
                 </>

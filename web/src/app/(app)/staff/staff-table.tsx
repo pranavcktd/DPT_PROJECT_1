@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchInput } from "@/components/search-input";
+import { PaginationBar } from "@/components/pagination-bar";
+import { usePagination } from "@/hooks/use-pagination";
 import { StaffFormDialog } from "./staff-form-dialog";
 import { ResetStaffPasswordDialog } from "./reset-staff-password-dialog";
 import { formatDateTime } from "@/lib/utils";
@@ -51,6 +53,7 @@ export function StaffTable({
     if (!q) return rows;
     return rows.filter((r) => `${r.name} ${r.email} ${r.role_name}`.toLowerCase().includes(q));
   }, [rows, query]);
+  const paged = usePagination(filtered, 10);
 
   return (
     <div className="space-y-4">
@@ -77,7 +80,7 @@ export function StaffTable({
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((r) => (
+                paged.pageItems.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">
                       {r.name}
@@ -116,6 +119,15 @@ export function StaffTable({
           </Table>
         </CardContent>
       </Card>
+      <PaginationBar
+        page={paged.page}
+        totalPages={paged.totalPages}
+        totalItems={paged.totalItems}
+        pageSize={paged.pageSize}
+        effectivePageSize={paged.effectivePageSize}
+        onPageChange={paged.setPage}
+        onPageSizeChange={paged.setPageSize}
+      />
     </div>
   );
 }

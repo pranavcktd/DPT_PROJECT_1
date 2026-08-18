@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchInput } from "@/components/search-input";
+import { PaginationBar } from "@/components/pagination-bar";
+import { usePagination } from "@/hooks/use-pagination";
 import { ContractorFormDialog } from "./contractor-form-dialog";
 import { ContractorDetailsDialog } from "./contractor-details-dialog";
 
@@ -21,6 +23,9 @@ export type ContractorRow = {
   pan_number: string;
   gstin: string;
   address: string;
+  district: string;
+  state: string;
+  pin_code: string;
   contact_person: string;
   phone: string;
   email: string;
@@ -44,6 +49,7 @@ export function ContractorsTable({ contractors, can_edit }: { contractors: Contr
         .includes(q),
     );
   }, [contractors, query]);
+  const paged = usePagination(filtered, 10);
 
   return (
     <div className="space-y-4">
@@ -70,7 +76,7 @@ export function ContractorsTable({ contractors, can_edit }: { contractors: Contr
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((c) => (
+                paged.pageItems.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium">{c.firm_name}</TableCell>
                     <TableCell>{c.pan_number}</TableCell>
@@ -98,6 +104,15 @@ export function ContractorsTable({ contractors, can_edit }: { contractors: Contr
           </Table>
         </CardContent>
       </Card>
+      <PaginationBar
+        page={paged.page}
+        totalPages={paged.totalPages}
+        totalItems={paged.totalItems}
+        pageSize={paged.pageSize}
+        effectivePageSize={paged.effectivePageSize}
+        onPageChange={paged.setPage}
+        onPageSizeChange={paged.setPageSize}
+      />
     </div>
   );
 }
