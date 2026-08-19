@@ -5,12 +5,21 @@ import { PaginationBar } from "@/components/pagination-bar";
 import { usePagination } from "@/hooks/use-pagination";
 import { SubscriptionDialog } from "./subscription-dialog";
 import { ToggleStatusDialog, ResetPasswordDialog, DeleteDepartmentDialog, FutureDatesToggleDialog } from "./department-row-actions";
+import { EditDepartmentDialog } from "./edit-department-dialog";
 
 export type DepartmentRow = {
   id: string;
   tenant_code: string;
   department_name: string;
+  office_address: string | null;
+  district: string | null;
+  state: string | null;
+  gstin: string | null;
+  gstin_registration_date: string | null;
+  pan: string | null;
+  tan: string | null;
   official_email: string | null;
+  contact_number: string | null;
   status: "ACTIVE" | "INACTIVE";
   subscription_amount: number | null;
   subscription_start_date: string | null;
@@ -59,6 +68,21 @@ export function DepartmentsList({ departments }: { departments: DepartmentRow[] 
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <EditDepartmentDialog
+                    departmentId={dept.id}
+                    department={{
+                      department_name: dept.department_name,
+                      office_address: dept.office_address ?? "",
+                      district: dept.district ?? "",
+                      state: dept.state ?? "",
+                      gstin: dept.gstin ?? "",
+                      gstin_registration_date: dept.gstin_registration_date?.slice(0, 10) ?? "",
+                      pan: dept.pan ?? "",
+                      tan: dept.tan ?? "",
+                      official_email: dept.official_email ?? "",
+                      contact_number: dept.contact_number ?? "",
+                    }}
+                  />
                   <SubscriptionDialog
                     departmentId={dept.id}
                     departmentName={dept.department_name}

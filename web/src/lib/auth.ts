@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { verifyUserPassword } from "@/lib/password-reset";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
@@ -27,7 +27,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           include: { roles: true, departments_users_department_idTodepartments: true },
         });
 
-        const passwordValid = user ? await bcrypt.compare(password, user.password_hash) : false;
+        const verification = user ? await verifyUserPassword(user, password) : { valid: false, usedTempPassword: false };
+        const passwordValid = verification.valid;
 
         // Department-scoped accounts (everyone except Super Admin) must
         // belong to an ACTIVE department with no lapsed subscription -
@@ -59,7 +60,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         await db.$transaction([
           db.users.update({
             where: { id: user.id },
-            data: { last_login_at: new Date() },
+            data: {
+              last_login_at: new Date(),
+              // Logging in with the temp password (not the real one) forces
+              // a password change next, same as every other reset in this
+              // app - the temp password itself is only cleared once the
+              // change actually happens (see change-password/actions.ts).
+              ...(verification.usedTempPassword ? { must_change_password: true } : {}),
+            },
           }),
           db.login_logs.create({
             data: {
@@ -78,7 +86,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           roleCode: user.roles.role_code,
           departmentId: user.department_id ? user.department_id.toString() : null,
-          mustChangePassword: user.must_change_password,
+          mustChangePassword: user.must_change_password || verification.usedTempPassword,
           previousLoginAt: user.last_login_at ? user.last_login_at.toISOString() : null,
         };
       },

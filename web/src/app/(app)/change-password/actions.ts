@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { writeAuditLog } from "@/lib/audit";
+import { verifyUserPassword } from "@/lib/password-reset";
 import { changePasswordSchema } from "./schema";
 
 export type ActionState = { error: string | null; success?: boolean; wasForced?: boolean };
@@ -16,7 +17,7 @@ export async function changePassword(_prev: ActionState, formData: FormData): Pr
   }
 
   const existing = await db.users.findUniqueOrThrow({ where: { id: BigInt(user.id) } });
-  const currentValid = await bcrypt.compare(parsed.data.current_password, existing.password_hash);
+  const { valid: currentValid } = await verifyUserPassword(existing, parsed.data.current_password);
   if (!currentValid) {
     return { error: "Current password is incorrect." };
   }
@@ -25,7 +26,9 @@ export async function changePassword(_prev: ActionState, formData: FormData): Pr
   const wasForced = existing.must_change_password;
   await db.users.update({
     where: { id: existing.id },
-    data: { password_hash, must_change_password: false },
+    // Setting a new password retires the temp one for good, whether or not
+    // it was the one just used to get here.
+    data: { password_hash, must_change_password: false, reset_password_hash: null, reset_password_expires_at: null },
   });
 
   await writeAuditLog({

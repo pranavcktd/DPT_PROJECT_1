@@ -127,6 +127,11 @@ CREATE TABLE users (
   phone         VARCHAR(20)  NULL,
   password_hash VARCHAR(255) NOT NULL,
   must_change_password BOOLEAN NOT NULL DEFAULT FALSE,  -- set TRUE whenever an admin resets a password to the default
+  -- Self-service "Forgot Password": a random temp password, valid alongside
+  -- (not instead of) password_hash until it expires or is actually used to
+  -- set a new password - see src/lib/password-reset.ts.
+  reset_password_hash       VARCHAR(255) NULL,
+  reset_password_expires_at TIMESTAMP    NULL,
   status        users_status NOT NULL DEFAULT 'ACTIVE',
   last_login_at TIMESTAMP NULL,
   last_logout_at TIMESTAMP NULL,
@@ -544,7 +549,7 @@ CREATE INDEX idx_certlog_department ON certificate_logs (department_id);
 
 CREATE TABLE smtp_settings (
   id                   BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  department_id        BIGINT NOT NULL,
+  department_id        BIGINT NULL,        -- NULL = Super Admin's own SMTP settings (software company level)
   smtp_host            VARCHAR(255) NOT NULL,
   smtp_port            INTEGER NOT NULL DEFAULT 587,
   smtp_username        VARCHAR(255) NOT NULL,
@@ -559,6 +564,10 @@ CREATE TABLE smtp_settings (
   CONSTRAINT fk_smtp_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL,
   CONSTRAINT uq_smtp_department UNIQUE (department_id)
 );
+-- Plain UNIQUE(department_id) above doesn't stop multiple Super-Admin rows
+-- (Postgres treats distinct NULLs as non-duplicate) - this partial index
+-- enforces at most one department_id IS NULL row (a singleton).
+CREATE UNIQUE INDEX uq_smtp_superadmin_singleton ON smtp_settings ((true)) WHERE department_id IS NULL;
 
 CREATE TRIGGER trg_smtp_settings_updated_at BEFORE UPDATE ON smtp_settings FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 

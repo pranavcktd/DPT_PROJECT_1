@@ -44,3 +44,37 @@ export const subscriptionSchema = z.object({
 
 export type SubscriptionInput = z.input<typeof subscriptionSchema>;
 export type SubscriptionValues = z.output<typeof subscriptionSchema>;
+
+export const departmentEditSchema = z.object({
+  department_name: z.string().trim().min(1, "Department name is required").max(150),
+  office_address: z.string().trim().max(255).optional().or(z.literal("")),
+  district: z.string().trim().max(100).optional().or(z.literal("")),
+  state: z.string().trim().max(100).optional().or(z.literal("")),
+  gstin: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[0-9]{2}[A-Z0-9]{13}$/, "GSTIN must be 15 characters, starting with a 2-digit state code")
+    .optional()
+    .or(z.literal("")),
+  gstin_registration_date: z.string().optional().or(z.literal("")),
+  pan: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "PAN must be in the format AAAAA0000A")
+    .optional()
+    .or(z.literal("")),
+  tan: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{4}[0-9]{5}[A-Z]$/, "TAN must be in the format ABCD12345E")
+    .optional()
+    .or(z.literal("")),
+  official_email: z.string().trim().toLowerCase().email("A valid official email is required").max(150),
+  contact_number: z.string().trim().max(20).optional().or(z.literal("")),
+});
+
+export type DepartmentEditInput = z.input<typeof departmentEditSchema>;
+export type DepartmentEditValues = z.output<typeof departmentEditSchema>;

@@ -4,20 +4,24 @@ import { db } from "@/lib/db";
 import { decryptSecret } from "@/lib/crypto";
 
 export class SmtpNotConfiguredError extends Error {
-  constructor() {
-    super("Email is not set up for this department yet. Ask your Department Admin to add SMTP settings under Department Profile.");
+  constructor(departmentId: bigint | null) {
+    super(
+      departmentId === null
+        ? "Email is not set up for the Super Admin account yet. Add SMTP settings under My Profile."
+        : "Email is not set up for this department yet. Ask your Department Admin to add SMTP settings under Department Profile.",
+    );
   }
 }
 
 export async function sendMail(params: {
-  departmentId: bigint;
+  departmentId: bigint | null;
   to: string;
   subject: string;
   html: string;
   attachments?: { filename: string; content: Buffer; contentType?: string }[];
 }) {
-  const settings = await db.smtp_settings.findUnique({ where: { department_id: params.departmentId } });
-  if (!settings) throw new SmtpNotConfiguredError();
+  const settings = await db.smtp_settings.findFirst({ where: { department_id: params.departmentId } });
+  if (!settings) throw new SmtpNotConfiguredError(params.departmentId);
 
   const transporter = nodemailer.createTransport({
     host: settings.smtp_host,

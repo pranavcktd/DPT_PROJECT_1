@@ -6,7 +6,13 @@ import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/session";
 import { writeAuditLog } from "@/lib/audit";
-import { onboardDepartmentSchema, subscriptionSchema, type OnboardDepartmentValues } from "./schema";
+import {
+  onboardDepartmentSchema,
+  subscriptionSchema,
+  departmentEditSchema,
+  type OnboardDepartmentValues,
+  type DepartmentEditValues,
+} from "./schema";
 import { DEFAULT_PASSWORD } from "@/lib/auth-constants";
 import { uniqueConstraintFields } from "@/lib/prisma-errors";
 
@@ -18,6 +24,23 @@ function toNullable(value?: string): string | null {
 
 function toNullableNumber(value: number | "" | undefined): number | null {
   return value === undefined || value === "" ? null : value;
+}
+
+function toNullableDate(value?: string): Date | null {
+  return value && value.length > 0 ? new Date(value) : null;
+}
+
+function friendlyErrorForEdit(error: unknown, values: DepartmentEditValues): string {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    const fields = uniqueConstraintFields(error);
+    if (fields.includes("official_email") || fields.includes("email")) {
+      return `A department or user with the email "${values.official_email}" already exists.`;
+    }
+    if (fields.includes("gstin")) return `A department with GSTIN "${values.gstin}" already exists.`;
+    if (fields.includes("pan")) return `A department with PAN "${values.pan}" already exists.`;
+    return "A department with this value already exists.";
+  }
+  throw error;
 }
 
 function friendlyErrorFor(error: unknown, values: OnboardDepartmentValues): string {
@@ -158,6 +181,100 @@ export async function updateSubscription(
     oldData: existing,
     newData: updated,
   });
+
+  revalidatePath("/super-admin/departments");
+  return { error: null, success: true };
+}
+
+/**
+ * Lets Super Admin edit a department's core profile fields after onboarding
+ * (name/address/GSTIN/PAN/TAN/contact/email) - the onboarding dialog is
+ * create-only and never touches these again. Tenant code and subscription
+ * stay out of scope here (immutable / handled by their own dedicated
+ * dialogs). If the official email changes, the Department Admin account's
+ * login email is updated to match and its password is reset to the default
+ * (same as any other password reset in this app) - the admin logs in with
+ * the new email and the default password, then changes it via /change-password.
+ */
+export async function updateDepartmentProfileAsSuperAdmin(
+  departmentId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const superAdmin = await requireSuperAdmin();
+  const parsed = departmentEditSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+  const id = BigInt(departmentId);
+  const values = parsed.data;
+  const existing = await db.departments.findUniqueOrThrow({ where: { id } });
+
+  try {
+    const { updated, admin } = await db.$transaction(async (tx) => {
+      const updated = await tx.departments.update({
+        where: { id },
+        data: {
+          department_name: values.department_name,
+          office_address: toNullable(values.office_address),
+          district: toNullable(values.district),
+          state: toNullable(values.state),
+          gstin: toNullable(values.gstin),
+          gstin_registration_date: toNullableDate(values.gstin_registration_date),
+          pan: toNullable(values.pan),
+          tan: toNullable(values.tan),
+          official_email: values.official_email,
+          contact_number: toNullable(values.contact_number),
+        },
+      });
+
+      // Compare against the admin's actual current login email, not the
+      // department's old official_email - the two can already have drifted
+      // apart (e.g. the department admin previously edited their own
+      // Department Profile page, which updates official_email but has never
+      // touched the login email), so official_email alone can't be trusted
+      // to detect "does the login need to change".
+      let admin = await tx.users.findFirst({
+        where: { department_id: id, roles: { role_code: "DEPARTMENT_ADMIN" } },
+        orderBy: { created_at: "asc" },
+      });
+      if (admin && admin.email !== values.official_email) {
+        const password_hash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+        admin = await tx.users.update({
+          where: { id: admin.id },
+          data: { email: values.official_email, password_hash, must_change_password: true },
+        });
+      } else {
+        admin = null;
+      }
+
+      return { updated, admin };
+    });
+
+    await writeAuditLog({
+      departmentId: id,
+      performedBy: BigInt(superAdmin.id),
+      tableName: "departments",
+      recordId: id,
+      action: "UPDATE",
+      oldData: existing,
+      newData: updated,
+      reason: "Department profile edited by Super Admin",
+    });
+
+    if (admin) {
+      await writeAuditLog({
+        departmentId: id,
+        performedBy: BigInt(superAdmin.id),
+        tableName: "users",
+        recordId: admin.id,
+        action: "UPDATE",
+        reason: "Department Admin login email updated and password reset to default (department email changed by Super Admin)",
+      });
+    }
+  } catch (error) {
+    return { error: friendlyErrorForEdit(error, values) };
+  }
 
   revalidatePath("/super-admin/departments");
   return { error: null, success: true };
