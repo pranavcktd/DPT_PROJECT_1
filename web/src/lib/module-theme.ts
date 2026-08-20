@@ -17,6 +17,8 @@ import {
   Landmark,
   FileCheck2,
   Megaphone,
+  DatabaseBackup,
+  Contact,
   type LucideIcon,
 } from "lucide-react";
 
@@ -38,7 +40,9 @@ export type ModuleKey =
   | "partyMaster"
   | "otherPayments"
   | "reconciliation"
-  | "notices";
+  | "notices"
+  | "backup"
+  | "branding";
 
 export const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -59,6 +63,8 @@ export const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   otherPayments: Landmark,
   reconciliation: FileCheck2,
   notices: Megaphone,
+  backup: DatabaseBackup,
+  branding: Contact,
 };
 
 /**
@@ -247,5 +253,23 @@ export const MODULE_THEME: Record<
     accentBar: "bg-red-500",
     accentBox: "bg-red-600",
     text: "text-red-700",
+  },
+  backup: {
+    badge: "bg-green-100 text-green-700",
+    navActive: "bg-green-600 text-white",
+    button: "bg-green-600 text-white hover:bg-green-700",
+    pill: "bg-green-50 text-green-700 border-green-200",
+    accentBar: "bg-green-500",
+    accentBox: "bg-green-600",
+    text: "text-green-700",
+  },
+  branding: {
+    badge: "bg-zinc-100 text-zinc-700",
+    navActive: "bg-zinc-600 text-white",
+    button: "bg-zinc-600 text-white hover:bg-zinc-700",
+    pill: "bg-zinc-50 text-zinc-700 border-zinc-200",
+    accentBar: "bg-zinc-500",
+    accentBox: "bg-zinc-600",
+    text: "text-zinc-700",
   },
 };

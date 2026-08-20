@@ -404,6 +404,7 @@ model users {
   last_logout_at                               DateTime?                      @db.Timestamp(6)
   reset_password_hash                          String?                        @db.VarChar(255)
   reset_password_expires_at                    DateTime?                      @db.Timestamp(6)
+  app_branding                                 app_branding[]
   audit_logs                                   audit_logs[]
   certificate_logs                             certificate_logs[]
   contractors_contractors_created_byTousers    contractors[]                  @relation("contractors_created_byTousers")
@@ -493,6 +494,17 @@ model notices {
 
   @@index([is_active], map: "idx_notice_active")
   @@index([department_id], map: "idx_notice_department")
+}
+
+model app_branding {
+  id            BigInt   @id @default(autoincrement())
+  company_name  String   @default("Corenexgen AI Technologies Pvt Ltd") @db.VarChar(150)
+  tagline       String   @default("Designed and developed by Corenexgen AI Technologies Pvt Ltd") @db.VarChar(255)
+  contact_email String?  @db.VarChar(150)
+  contact_phone String?  @db.VarChar(20)
+  updated_by    BigInt?
+  updated_at    DateTime @default(now()) @db.Timestamp(6)
+  users         users?   @relation(fields: [updated_by], references: [id], onUpdate: NoAction, map: "fk_branding_updated_by")
 }
 
 enum audit_logs_action {

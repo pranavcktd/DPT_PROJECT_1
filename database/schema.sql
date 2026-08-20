@@ -571,6 +571,21 @@ CREATE UNIQUE INDEX uq_smtp_superadmin_singleton ON smtp_settings ((true)) WHERE
 
 CREATE TRIGGER trg_smtp_settings_updated_at BEFORE UPDATE ON smtp_settings FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+-- Single global row (no department_id - this is the software company's own
+-- branding, shown on the login page and in-app footer for every tenant).
+-- Uniqueness isn't DB-enforced; the app always reads/writes the first row.
+CREATE TABLE app_branding (
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  company_name  VARCHAR(150) NOT NULL DEFAULT 'Corenexgen AI Technologies Pvt Ltd',
+  tagline       VARCHAR(255) NOT NULL DEFAULT 'Designed and developed by Corenexgen AI Technologies Pvt Ltd',
+  contact_email VARCHAR(150) NULL,
+  contact_phone VARCHAR(20) NULL,
+  updated_by    BIGINT NULL,
+  updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_branding_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE TRIGGER trg_app_branding_updated_at BEFORE UPDATE ON app_branding FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 -- ============================================================================
 -- SECTION 7: AUDIT TRAIL & SECURITY LOGS
 -- Written by the application layer (it has access to IP/user-agent/reason,

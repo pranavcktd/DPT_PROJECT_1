@@ -107,6 +107,14 @@ export const MODULE_REGISTRY: ModuleRegistryEntry[] = [
     dashboardTitle: "Department Profile",
     dashboardDescription: "Letterhead, DDO, and identity",
   },
+  {
+    key: "backup",
+    moduleCode: "DEPARTMENT_SETTINGS",
+    href: "/department/backup",
+    navLabel: "Backup & Database",
+    dashboardTitle: "Backup & Database",
+    dashboardDescription: "Export/restore your data and clear dummy data",
+  },
 ];
 
 export const MODULE_REGISTRY_BY_KEY: Record<ModuleKey, ModuleRegistryEntry | undefined> = Object.fromEntries(
@@ -170,4 +178,5 @@ export const NAV_TREE: NavTreeNode[] = [
   { type: "link", key: "staff" },
   { type: "link", key: "auditLogs" },
   { type: "link", key: "department" },
+  { type: "link", key: "backup" },
 ];

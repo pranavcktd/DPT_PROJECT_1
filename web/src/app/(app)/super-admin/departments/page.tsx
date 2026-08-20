@@ -59,7 +59,7 @@ export default async function SuperAdminDepartmentsPage() {
       <PageHeader
         moduleKey="superAdmin"
         title="Departments"
-        description="Onboard departments and manage their access, subscriptions, and admin credentials."
+        description="Onboard departments and manage their access, subscriptions, and admin credentials. Backup, restore, and database size have moved to Backup & Database."
         action={<DepartmentFormDialog />}
       />
       <DepartmentsList departments={rows} />

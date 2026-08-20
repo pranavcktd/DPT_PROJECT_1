@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { IdleLogoutGuard } from "@/components/idle-logout-guard";
 import { getModulePermissions, requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
+import { getBranding } from "@/lib/branding";
 import { MODULE_REGISTRY_BY_KEY, NAV_TREE, type NavTreeNode } from "@/lib/module-registry";
 import { Menu } from "lucide-react";
 import { SidebarNav, type NavItem } from "./sidebar-nav";
@@ -25,6 +26,8 @@ const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/super-admin/departments", label: "Departments", icon: "superAdmin" },
   { href: "/super-admin/users", label: "Users", icon: "staff" },
   { href: "/super-admin/notices", label: "Notices", icon: "notices" },
+  { href: "/super-admin/backup", label: "Backup & Database", icon: "backup" },
+  { href: "/super-admin/branding", label: "Branding & Contact", icon: "branding" },
   { href: "/super-admin/audit-logs", label: "Audit Logs", icon: "auditLogs" },
   { href: "/super-admin/profile", label: "My Profile", icon: "account" },
 ];
@@ -69,12 +72,15 @@ async function resolveNavTree(nodes: NavTreeNode[]): Promise<NavItem[]> {
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
 
-  const department = user.departmentId
-    ? await db.departments.findUnique({
-        where: { id: BigInt(user.departmentId) },
-        select: { department_name: true, tenant_code: true, logo_path: true },
-      })
-    : null;
+  const [department, branding] = await Promise.all([
+    user.departmentId
+      ? db.departments.findUnique({
+          where: { id: BigInt(user.departmentId) },
+          select: { department_name: true, tenant_code: true, logo_path: true },
+        })
+      : null,
+    getBranding(),
+  ]);
 
   const navItems: NavItem[] =
     user.roleCode === "SUPER_ADMIN"
@@ -148,6 +154,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <main className="flex-1 overflow-y-auto bg-muted/20 px-4 py-6 md:px-8 md:py-8">
           <div className="mx-auto max-w-6xl">{children}</div>
         </main>
+
+        <footer className="no-print flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 border-t bg-background px-4 py-2 text-center text-xs text-muted-foreground">
+          <span>{branding.tagline}</span>
+          {branding.contactEmail || branding.contactPhone ? (
+            <span className="flex items-center gap-x-2">
+              <span>·</span>
+              {branding.contactEmail ? (
+                <a href={`mailto:${branding.contactEmail}`} className="underline underline-offset-4">
+                  {branding.contactEmail}
+                </a>
+              ) : null}
+              {branding.contactEmail && branding.contactPhone ? <span>·</span> : null}
+              {branding.contactPhone ? (
+                <a href={`tel:${branding.contactPhone.replace(/\s+/g, "")}`} className="underline underline-offset-4">
+                  {branding.contactPhone}
+                </a>
+              ) : null}
+            </span>
+          ) : null}
+        </footer>
       </div>
     </div>
   );
